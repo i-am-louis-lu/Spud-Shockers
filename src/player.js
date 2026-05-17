@@ -824,6 +824,10 @@ export class Player {
     this.slideDirX = dx / m;
     this.slideDirZ = dz / m;
     this.slideTimer = 0.65;
+    // Slope tracking — used to extend slide time and add a speed kicker when
+    // the player descends elevation mid-slide (ramps, stairs, mega-hill cliffs).
+    this._slideStartY = this.position.y;
+    this._prevSlideY = this.position.y;
     if (this.game.sfx.special) this.game.sfx.special();
   }
 
@@ -1115,9 +1119,20 @@ export class Player {
     if (this.slideCooldown > 0) this.slideCooldown = Math.max(0, this.slideCooldown - dt);
     if (this.slideTimer > 0) {
       this.slideTimer -= dt;
+      // Slope: descending frames refund slide time so going down a ramp keeps
+      // momentum instead of decaying out before you reach the bottom.
+      if (this._prevSlideY != null && this._prevSlideY - this.position.y > 0.04) {
+        this.slideTimer += dt * 0.8;
+      }
+      this._prevSlideY = this.position.y;
+
       // Speed decays smoothly from 2.4x at start to ~1.0x at end
-      const t = 1 - Math.max(0, this.slideTimer) / 0.65;
-      const speedFactor = 2.4 - t * 1.4;
+      const t = Math.max(0, Math.min(1, 1 - this.slideTimer / 0.65));
+      let speedFactor = 2.4 - t * 1.4;
+      // Speed kicker proportional to total elevation dropped since slide start
+      const drop = (this._slideStartY ?? this.position.y) - this.position.y;
+      if (drop > 0.2) speedFactor = Math.min(3.5, speedFactor + drop * 0.22);
+
       // Allow small steering input so it's not totally rails
       let sx = this.slideDirX + move.x * 0.18;
       let sz = this.slideDirZ + move.z * 0.18;
