@@ -237,6 +237,14 @@ const FPS_OFFSETS = {
     armsScale: 0.0108,
     gunX: -0.150, gunY: 0.004, gunZ: 0.0036,
   },
+  // Tater Tosser (grenade launcher) — values measured 2026-05-17 by louis.
+  tossor: {
+    armsX: 0.284, armsY: -2.700, armsZ: 0.006,
+    armsRotY: 3.09,
+    armsScale: 0.0172,
+    gunX: 0.000, gunY: -0.100, gunZ: -0.100,
+    gunRotY: -0.05,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
