@@ -223,19 +223,23 @@ const SPAWN_INVULN = 2.5;
 // pasted here. If a weapon isn't in this map we fall back to whatever the
 // auto-align init computed (decent generic "hand on gun" pose).
 const FPS_OFFSETS = {
-  // Boomstick (sniper) — values measured 2026-05-17 by louis.
+  // Boomstick (sniper) — values measured 2026-05-17 by louis (rev 3:43).
   boomstick: {
     armsX: 0.311, armsY: -1.854, armsZ: -0.236,
     armsRotY: Math.PI,
     armsScale: 0.011,
-    gunX: -0.150, gunY: -0.009, gunZ: 0.000,
+    gunX: -0.150, gunY: -0.009, gunZ: -0.020,
+    gunRotY: -0.29,
+    gunScale: 0.675,
   },
-  // Fry-er (full-auto AR) — values measured 2026-05-17 by louis.
+  // Fry-er (full-auto AR) — values measured 2026-05-17 by louis (rev 3:42).
   fryer: {
     armsX: 0.231, armsY: -1.712, armsZ: 0.012,
     armsRotY: 3.16,
     armsScale: 0.0108,
     gunX: -0.150, gunY: 0.004, gunZ: 0.0036,
+    gunRotY: 1.47,
+    gunScale: 0.54,
   },
   // Tater Tosser (grenade launcher) — values measured 2026-05-17 by louis.
   tossor: {
@@ -273,6 +277,16 @@ const FPS_OFFSETS = {
     gunRotY: 0.055,
     gunScale: 0.75,
   },
+  // Spud Knife — values measured 2026-05-17 by louis. Knife uses the
+  // Stabbing clip as its neutral pose (frame 0 = blade-held-forward grip).
+  knife: {
+    armsX: -0.4391, armsY: -1.7267, armsZ: -0.5885,
+    armsRotY: Math.PI,
+    armsScale: 0.011,
+    gunX: 0.000, gunY: 0.000, gunZ: 0.000,
+    gunRotY: -3.5,
+    gunScale: 0.3,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
@@ -281,6 +295,9 @@ const FPS_OFFSETS = {
 // Knife is special-cased to HIDE the FPS arms entirely (see _updateFpsArmsVisibility).
 const NEUTRAL_ANIM = {
   spudgun: 'pistolWalk',
+  // Knife now uses the Stabbing clip's frame 0 as the resting "blade
+  // forward" pose; swinging plays the clip through and returns to frame 0.
+  knife: 'stabbing',
 };
 
 export class Player {
@@ -844,19 +861,13 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
   }
 
   // Pick the right "idle" arms pose for the equipped weapon and start it.
-  // Knife is special-cased: hides the FPS arms entirely so the user just
-  // sees the procedural knife viewmodel + slash animation, no Mixamo arms.
+  // Pistol-walk loops; everything else (reload / stab) freezes on frame 0
+  // as the resting grip pose.
   _setFpsNeutralPose(weaponName) {
     if (!this.fpsArms || !this.fpsArmsActions) return;
     // Don't override an in-flight reload or stab — those will return to
     // neutral themselves when they finish.
     if (this._fpsArmsReloadActive || this._fpsArmsStabActive) return;
-    if (weaponName === 'knife') {
-      this.fpsArms.visible = false;
-      // Stop every action so the mixer doesn't keep ticking arms we can't see
-      for (const a of Object.values(this.fpsArmsActions)) a.stop();
-      return;
-    }
     this.fpsArms.visible = true;
     const neutralName = NEUTRAL_ANIM[weaponName] || 'reloading';
     const act = this.fpsArmsActions[neutralName];
@@ -866,16 +877,17 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       if (name !== neutralName) a.stop();
     }
     act.reset();
-    if (neutralName === 'reloading') {
-      // Pause on frame 0 — hands-on-gun grip
-      act.setLoop(THREE.LoopOnce, 1);
-      act.clampWhenFinished = true;
-      act.timeScale = 0;
-    } else {
-      // Loop the walking / pistol-grip animation
+    if (neutralName === 'pistolWalk') {
+      // Looping walk animation — per-frame logic sets time from bobPhase.
       act.setLoop(THREE.LoopRepeat, Infinity);
       act.clampWhenFinished = false;
       act.timeScale = 1;
+    } else {
+      // Frame-0 grip pose (reload clip's frame 0 for guns, stab clip's
+      // frame 0 for the knife).
+      act.setLoop(THREE.LoopOnce, 1);
+      act.clampWhenFinished = true;
+      act.timeScale = 0;
     }
     act.setEffectiveWeight(1);
     act.enabled = true;
