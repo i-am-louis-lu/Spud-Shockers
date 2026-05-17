@@ -483,12 +483,16 @@ export class Player {
           this._fpsArmsBusy = false;
           return;   // not ready yet — we'll retry next frame
         }
-        const bundle = await mod.makeCharacter({ tint: 0xd9a86b });
+        // Light peach/skin tone (was brown 0xd9a86b — felt off for hands).
+        const bundle = await mod.makeCharacter({ tint: 0xe8c6a4 });
         if (!bundle || !bundle.mesh) {
           this._fpsArmsBusy = false;
           return;
         }
-        bundle.mesh.position.set(0, -1.55, 0);   // eye level lands at neck/chest
+        // Move character slightly DOWN so the chest sits below eye level and
+        // forward 10cm so more of the arm (not just the hand) reaches into
+        // the camera frame.
+        bundle.mesh.position.set(0, -1.65, -0.1);
         bundle.mesh.rotation.y = Math.PI;        // arms reach into camera -Z
         bundle.mesh.traverse((o) => {
           // Layer 1 is the first-person camera's enabled layer (alongside 0).
@@ -525,27 +529,29 @@ export class Player {
     })();
   }
 
-  // Kick off a stab animation overlay. Called from _triggerMuzzleFx(true).
-  // Plays the Stabbing clip once, then snaps back to the neutral grip.
+  // Kick off the knife stab animation. Uses crossFadeFrom on the running
+  // reload (neutral grip) action so the arms MORPH into the stab pose
+  // instead of teleporting into it — the "hand from nowhere" complaint.
   _triggerFpsStab() {
-    const act = this.fpsArmsActions?.stabbing;
-    if (!act) return;
-    const clip = act.getClip();
+    const stab = this.fpsArmsActions?.stabbing;
+    const reload = this.fpsArmsActions?.reloading;
+    if (!stab) return;
+    const clip = stab.getClip();
     if (!clip) return;
-    // Stab clip plays at full speed (don't time-stretch — knife swing is
-    // its own ~0.45s arc independent of the clip's natural duration).
-    act.reset();
-    act.setLoop(THREE.LoopOnce, 1);
-    act.clampWhenFinished = true;
-    act.timeScale = 1.0;
-    act.play();
-    // Fade the neutral-grip reload action out so the stab arm motion isn't
-    // overlaid on it (would look like two arms in two places).
-    const rel = this.fpsArmsActions.reloading;
-    if (rel) rel.weight = 0;
-    act.weight = 1;
+    stab.reset();
+    stab.setLoop(THREE.LoopOnce, 1);
+    stab.clampWhenFinished = true;
+    stab.timeScale = 1.0;
+    stab.enabled = true;
+    stab.setEffectiveTimeScale(1);
+    stab.setEffectiveWeight(1);
+    stab.play();
+    // crossFadeFrom: smoothly blend from the neutral reload into the stab
+    if (reload && reload.isRunning && reload.isRunning()) {
+      stab.crossFadeFrom(reload, 0.12, true);
+    }
     this._fpsArmsStabActive = true;
-    this._fpsArmsStabTimer = clip.duration / Math.max(0.1, act.timeScale);
+    this._fpsArmsStabTimer = clip.duration / Math.max(0.1, stab.timeScale);
   }
 
   setupInput() {
@@ -1330,12 +1336,20 @@ export class Player {
         this._fpsArmsStabTimer -= dt;
         if (this._fpsArmsStabTimer <= 0) {
           this._fpsArmsStabActive = false;
-          if (stabAct) stabAct.weight = 0;
+          // Snap the neutral reload action back to frame 0, paused, then
+          // cross-fade FROM the stab so we morph back to the grip pose
+          // rather than teleporting.
           if (reloadAct) {
-            reloadAct.weight = 1;
             reloadAct.reset();
+            reloadAct.setLoop(THREE.LoopOnce, 1);
+            reloadAct.clampWhenFinished = true;
             reloadAct.timeScale = 0;
+            reloadAct.setEffectiveWeight(1);
+            reloadAct.enabled = true;
             reloadAct.play();
+            if (stabAct) reloadAct.crossFadeFrom(stabAct, 0.15, true);
+          } else if (stabAct) {
+            stabAct.weight = 0;
           }
         }
       }

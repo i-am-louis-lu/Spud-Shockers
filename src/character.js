@@ -98,7 +98,11 @@ export function preloadCharacter() {
 
 // Returns { mesh, mixer, actions, play } for a fresh clone, or null if the
 // character system isn't ready. Never throws.
-export async function makeCharacter({ tint = 0xd1a36a } = {}) {
+// Default tint is a light skin/peach tone — the Mixamo character's original
+// textures got stripped during the FBX→GLB optimization (we resize textures
+// to 32x32 to keep the bundle small), so we substitute a flat material that
+// reads as "skin" rather than the old brown.
+export async function makeCharacter({ tint = 0xe8c6a4 } = {}) {
   if (!_ready || !_template) return null;
   try {
     // SkeletonUtils lives at /utils/SkeletonUtils.js — dynamic-import so a
