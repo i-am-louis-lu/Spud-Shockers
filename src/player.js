@@ -232,6 +232,14 @@ const FPS_OFFSETS = {
   },
 };
 
+// Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
+// paused on frame 0 (hands-forward grip pose). Pistol uses the Mixamo
+// Pistol-Walk animation looped, so the hands subtly move while idling.
+// Knife is special-cased to HIDE the FPS arms entirely (see _updateFpsArmsVisibility).
+const NEUTRAL_ANIM = {
+  spudgun: 'pistolWalk',
+};
+
 export class Player {
   constructor(game) {
     this.game = game;
@@ -708,10 +716,51 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
   _applyFpsOffsetsForWeapon(weaponName) {
     if (!this.fpsArms || !this._devState) return;
     const o = FPS_OFFSETS[weaponName] || this._fpsArmsBaseline;
-    if (!o) return;
-    Object.assign(this._devState, o);
-    this._syncDevSliders();
-    this._applyDevState();
+    if (o) {
+      Object.assign(this._devState, o);
+      this._syncDevSliders();
+      this._applyDevState();
+    }
+    this._setFpsNeutralPose(weaponName);
+  }
+
+  // Pick the right "idle" arms pose for the equipped weapon and start it.
+  // Knife is special-cased: hides the FPS arms entirely so the user just
+  // sees the procedural knife viewmodel + slash animation, no Mixamo arms.
+  _setFpsNeutralPose(weaponName) {
+    if (!this.fpsArms || !this.fpsArmsActions) return;
+    // Don't override an in-flight reload or stab — those will return to
+    // neutral themselves when they finish.
+    if (this._fpsArmsReloadActive || this._fpsArmsStabActive) return;
+    if (weaponName === 'knife') {
+      this.fpsArms.visible = false;
+      // Stop every action so the mixer doesn't keep ticking arms we can't see
+      for (const a of Object.values(this.fpsArmsActions)) a.stop();
+      return;
+    }
+    this.fpsArms.visible = true;
+    const neutralName = NEUTRAL_ANIM[weaponName] || 'reloading';
+    const act = this.fpsArmsActions[neutralName];
+    if (!act) return;
+    // Stop any other actions that might be playing.
+    for (const [name, a] of Object.entries(this.fpsArmsActions)) {
+      if (name !== neutralName) a.stop();
+    }
+    act.reset();
+    if (neutralName === 'reloading') {
+      // Pause on frame 0 — hands-on-gun grip
+      act.setLoop(THREE.LoopOnce, 1);
+      act.clampWhenFinished = true;
+      act.timeScale = 0;
+    } else {
+      // Loop the walking / pistol-grip animation
+      act.setLoop(THREE.LoopRepeat, Infinity);
+      act.clampWhenFinished = false;
+      act.timeScale = 1;
+    }
+    act.setEffectiveWeight(1);
+    act.enabled = true;
+    act.play();
   }
 
   _applyDevState() {
@@ -1542,37 +1591,34 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
     // Crosshair kick — fast decay so it pops & snaps back
     this.crosshairKick = Math.max(0, (this.crosshairKick || 0) - dt * 6.5);
 
-    // FPS arms — lazy retry init (cheap until success), then a tiny state
-    // machine: stab overlay > reload anim > neutral grip pose (frame 0 of
-    // the reload clip, paused).
+    // FPS arms — lazy retry init, then a per-weapon-aware state machine:
+    //   knife       → arms hidden, procedural slash only
+    //   pistol      → pistolWalk clip loops as the neutral
+    //   other guns  → reloading clip frozen on frame 0 as the neutral
+    //   reload      → reloading clip plays through, time-stretched
+    //   knife stab  → N/A (arms hidden when knife is equipped)
     if (!this.fpsArms) this._tryInitFpsArms();
     if (this.fpsArmsActions) {
       const reloadAct = this.fpsArmsActions.reloading;
-      const stabAct = this.fpsArmsActions.stabbing;
       if (this._fpsArmsStabActive) {
         this._fpsArmsStabTimer -= dt;
         if (this._fpsArmsStabTimer <= 0) {
           this._fpsArmsStabActive = false;
-          // Snap the neutral reload action back to frame 0, paused, then
-          // cross-fade FROM the stab so we morph back to the grip pose
-          // rather than teleporting.
-          if (reloadAct) {
-            reloadAct.reset();
-            reloadAct.setLoop(THREE.LoopOnce, 1);
-            reloadAct.clampWhenFinished = true;
-            reloadAct.timeScale = 0;
-            reloadAct.setEffectiveWeight(1);
-            reloadAct.enabled = true;
-            reloadAct.play();
-            if (stabAct) reloadAct.crossFadeFrom(stabAct, 0.15, true);
-          } else if (stabAct) {
-            stabAct.weight = 0;
-          }
+          this._setFpsNeutralPose(this.currentWeapon);
         }
       }
       if (reloadAct && !this._fpsArmsStabActive) {
         if (this.reloading && !this._fpsArmsReloadActive) {
           this._fpsArmsReloadActive = true;
+          // Show arms even if the equipped weapon's neutral pose hides them
+          // — only the knife should ever hit this, and the knife doesn't
+          // have ammo to reload anyway, but be defensive.
+          this.fpsArms.visible = true;
+          // Stop any neutral pose (e.g. pistolWalk loop) so it doesn't
+          // fight the reload action over the same bones.
+          for (const [name, a] of Object.entries(this.fpsArmsActions)) {
+            if (name !== 'reloading') a.stop();
+          }
           const targetSec = Math.max(0.2, this._reloadTotal || this.reloadTimer || 1);
           const clip = reloadAct.getClip();
           reloadAct.reset();
@@ -1581,9 +1627,10 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
           reloadAct.play();
         } else if (!this.reloading && this._fpsArmsReloadActive) {
           this._fpsArmsReloadActive = false;
-          reloadAct.reset();
-          reloadAct.timeScale = 0;
-          reloadAct.play();
+          // Return to the right neutral pose for whatever's equipped now
+          // (pistolWalk loop for spudgun, frame-0 grip for everything else,
+          // hidden for knife).
+          this._setFpsNeutralPose(this.currentWeapon);
         }
       }
       if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);

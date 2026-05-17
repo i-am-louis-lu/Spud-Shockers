@@ -20,11 +20,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const MIXAMO_SCALE = 0.011;
 
 const FILES = {
-  walking:   'assets/character/mx_Walking.glb',
-  jumping:   'assets/character/mx_Jumping_Down.glb',
-  sliding:   'assets/character/mx_Running_Slide.glb',
-  reloading: 'assets/character/mx_Reloading.glb',
-  stabbing:  'assets/character/mx_Stabbing.glb',
+  walking:    'assets/character/mx_Walking.glb',
+  jumping:    'assets/character/mx_Jumping_Down.glb',
+  sliding:    'assets/character/mx_Running_Slide.glb',
+  reloading:  'assets/character/mx_Reloading.glb',
+  stabbing:   'assets/character/mx_Stabbing.glb',
+  pistolWalk: 'assets/character/mx_Pistol_Walk.glb',
 };
 
 let _template = null;
@@ -107,7 +108,10 @@ function applyArmsOnlyMask(skinnedMesh, {
   // Default: BOTH arm chains. The dev positioning panel lets the player
   // place the arms so both hands grip the gun naturally.
   armsRegex = /(Shoulder|Arm|ForeArm|Hand)/,
-  threshold = 0.3,
+  // Threshold 0.55 means a vertex must have MAJORITY skin weight to arm
+  // bones to survive the mask. At 0.3 the chest near the shoulders was
+  // bleeding through because those vertices have ~30-40% shoulder weight.
+  threshold = 0.55,
 } = {}) {
   try {
     const skel = skinnedMesh.skeleton;
