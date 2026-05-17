@@ -271,7 +271,8 @@ const FPS_OFFSETS = {
     gunRotY: 0.0,
     gunScale: 0.515,
   },
-  // Masher (double-barrel shotgun) — values measured 2026-05-17 by louis.
+  // Masher (double-barrel shotgun) — values measured 2026-05-17 by louis
+  // (rev 3:54 with Tilt added).
   masher: {
     armsX: 0.326, armsY: -1.730, armsZ: -0.055,
     armsRotY: 3.33,
@@ -279,6 +280,7 @@ const FPS_OFFSETS = {
     gunX: -0.100, gunY: -0.110, gunZ: -0.100,
     gunRotX: 0.095,
     gunRotY: 0.055,
+    gunRotZ: -1.5,
     gunScale: 0.75,
   },
   // Spud Knife — values measured 2026-05-17 by louis. Knife uses the
