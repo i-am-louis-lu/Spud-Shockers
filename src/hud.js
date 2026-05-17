@@ -136,7 +136,6 @@ export class HUD {
     this.dmgDirLayer = this.makeDmgDirLayer();
     this.chatLog = document.getElementById('chat-log');
     this.comboMeter = document.getElementById('combo-meter');
-    this.dashChip = document.getElementById('dash-chip');
     this.slideChip = document.getElementById('slide-chip');
     this.nametagLayer = document.getElementById('nametag-layer');
     this.lockonTarget = document.getElementById('lockon-target');
@@ -286,7 +285,6 @@ export class HUD {
     this.updateFrenzyTimer();
     this.updateDamageDirections();
     this.updateCombo();
-    this.updateDashChip(p);
     this.updateSlideChip(p);
     this.updateNametags();
     this.updateLockOn();
@@ -343,10 +341,11 @@ export class HUD {
       tag.root.style.left = sx + 'px';
       tag.root.style.top = sy + 'px';
       tag.nameEl.textContent = bot.name;
-      // Streak chip (kills act as streak since bots die fully)
-      if ((bot.kills || 0) >= 5) {
+      // Streak chip — shows current (resets-on-death) streak, not cumulative kills
+      const botStreak = bot.streak || 0;
+      if (botStreak >= 5) {
         tag.streakEl.style.display = 'inline-block';
-        tag.streakEl.textContent = `🔥${bot.kills}`;
+        tag.streakEl.textContent = `🔥${botStreak}`;
       } else {
         tag.streakEl.style.display = 'none';
       }
@@ -413,17 +412,6 @@ export class HUD {
     this.comboMeter.innerHTML =
       `<div class="combo-stack">×${c}<span class="combo-mult"> ${mult}× DMG</span></div>` +
       `<div class="combo-bar"><div class="combo-fill" style="width:${pct}%"></div></div>`;
-  }
-
-  updateDashChip(p) {
-    if (!this.dashChip) return;
-    if (p.dashCooldown > 0) {
-      this.dashChip.classList.remove('ready');
-      this.dashChip.textContent = `Q DASH ${p.dashCooldown.toFixed(1)}s`;
-    } else {
-      this.dashChip.classList.add('ready');
-      this.dashChip.textContent = 'Q DASH';
-    }
   }
 
   updateSlideChip(p) {

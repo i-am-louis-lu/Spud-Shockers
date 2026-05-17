@@ -100,7 +100,6 @@ Left click    shoot
 Right click   aim / zoom
 Shift         sprint
 Space         jump
-Q             dash (3s cooldown)
 C             slide (sprint + C; tap Space mid-slide for slide-hop!)
 R             reload
 T             special move (per-weapon)

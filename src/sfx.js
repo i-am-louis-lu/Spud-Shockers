@@ -48,12 +48,13 @@ export class SFX {
     if (this._loadStarted) return;
     this._loadStarted = true;
     const files = {
-      gunshot: 'sounds/gunshot.mp3',
-      grenade: 'sounds/grenade.mp3',
-      knife:   'sounds/knife.mp3',
-      impact:  'sounds/impact.mp3',
-      death:   'sounds/death.mp3',
-      reload:  'sounds/reload.mp3',
+      gunshot:     'sounds/gunshot.mp3',
+      grenade:     'sounds/grenade.mp3',
+      knife:       'sounds/knife.mp3',
+      impact:      'sounds/impact.mp3',
+      death:       'sounds/death.mp3',
+      reload:      'sounds/reload.mp3',
+      reload_long: 'sounds/reload_long.mp3',
     };
     for (const [key, url] of Object.entries(files)) {
       fetch(url)
@@ -113,25 +114,28 @@ export class SFX {
     this.playSample('knife', { rate: 1.0, gain: 1.0 * distGain, minGapMs: 40 });
   }
 
-  // Reload — plays the loaded reload mp3 ONCE, time-stretched (via playback
-  // rate) to perfectly match `targetSec`. No looping, so it never repeats
-  // itself even on long reloads. Pitch drops on longer reloads as a side
-  // effect (rate < 1), which actually sells the "long, deliberate" feel.
+  // Reload — picks the short or long sample based on target duration, then
+  // time-stretches to fit exactly. Long reloads (2.5s+) use the multi-stage
+  // mag-out/mag-in/charging-handle sample so snipers and machine guns feel
+  // appropriately heavy. Faster reloads keep the snappy short sample.
   reloadSample(targetSec, gain = 1.6) {
     if (!this.ctx) return null;
-    const buf = this.buffers.reload;
-    if (!buf) return null;
+    const useLong = targetSec >= 2.5;
+    const buf = useLong ? this.buffers.reload_long : this.buffers.reload;
+    // Fall back to whichever sample is loaded if the preferred one isn't yet
+    const finalBuf = buf || this.buffers.reload || this.buffers.reload_long;
+    if (!finalBuf) return null;
     if (this._reloadSrc) {
       try { this._reloadSrc.stop(); } catch (_) {}
       this._reloadSrc = null;
     }
     const now = this.ctx.currentTime;
     const src = this.ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = finalBuf;
     src.loop = false;
     // Exact fit: natural-duration / target-duration = playback rate. Clamp
     // softly so the pitch doesn't get extreme on edge cases.
-    const natural = buf.duration;
+    const natural = finalBuf.duration;
     const rawRate = natural / Math.max(0.1, targetSec);
     src.playbackRate.value = Math.max(0.35, Math.min(2.2, rawRate));
     const g = this.ctx.createGain();

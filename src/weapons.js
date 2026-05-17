@@ -36,7 +36,7 @@ export const WEAPONS = {
     fireRate: 0.08,
     magSize: 30,
     reserve: 120,
-    reloadTime: 2.0,
+    reloadTime: 2.4,        // bumped from 2.0 — heavier rifle feels deliberate
     spread: 0.04,
     adsSpread: 0.012,
     projectileSpeed: 95,
@@ -47,12 +47,12 @@ export const WEAPONS = {
     viewmodelColor: 0xc47a3d,
     zoomFOV: 56,
     zoomMoveMult: 0.6,
-    moveSpeedMult: 1.00,   // assault rifle — baseline
-    recoilPitch: 0.042,
-    recoilYaw: 0.032,
-    recoilRecover: 7,
-    kickAmt: 0.07,
-    shakeAmt: 0.035,
+    moveSpeedMult: 0.96,    // a touch slower — full-auto rifle weight
+    recoilPitch: 0.065,     // was 0.042 — climb is now noticeable
+    recoilYaw: 0.045,       // was 0.032
+    recoilRecover: 6.5,     // was 7 — recovers a bit slower
+    kickAmt: 0.12,          // was 0.07 — viewmodel shoves harder
+    shakeAmt: 0.060,        // was 0.035 — camera judder per shot
   },
   hashbrowner: {
     name: 'Hashbrowner',
@@ -112,7 +112,7 @@ export const WEAPONS = {
   },
   spudling: {
     name: 'Spudling Gun',
-    description: 'High-rate SMG. Tiny per-bullet damage but pinpoint accuracy. P: Sentry — locked, no reload, 4× fire rate, 2× damage, 15s cooldown. T: Hot Barrel — 2× fire rate for 3s, 15s cooldown.',
+    description: 'Belt-fed heavy machine gun. Tiny per-bullet damage but pinpoint accuracy — and a punch that builds the longer you hold. P: Sentry — locked, no reload, 4× fire rate, 2× damage, 15s cooldown. T: Hot Barrel — 2× fire rate for 3s, 15s cooldown.',
     crosshair: 'smg',
     adsCrosshair: 'holo',
     special: { name: 'Hot Barrel', kind: 'hotBarrel', cooldown: 15, duration: 3.0, fireRateMult: 0.5 },
@@ -120,7 +120,7 @@ export const WEAPONS = {
     fireRate: 0.06,
     magSize: 60,
     reserve: 180,
-    reloadTime: 4.5,
+    reloadTime: 5.2,       // was 4.5 — belt feed takes its time
     spread: 0.008,
     adsSpread: 0.002,
     projectileSpeed: 100,
@@ -130,24 +130,24 @@ export const WEAPONS = {
     pellets: 1,
     viewmodelColor: 0x2a2018,
     zoomFOV: 50,
-    zoomMoveMult: 0.45,
-    moveSpeedMult: 1.05,   // SMG — light, nimble
-    recoilPitch: 0.022,
-    recoilYaw: 0.026,
-    recoilRecover: 7,
-    kickAmt: 0.05,
-    shakeAmt: 0.022,
+    zoomMoveMult: 0.40,    // was 0.45 — heavier when scoped
+    moveSpeedMult: 0.92,   // was 1.05 — heavy MG, not nimble
+    recoilPitch: 0.048,    // was 0.022 — climbs with sustained fire
+    recoilYaw: 0.050,      // was 0.026 — drifts wider too
+    recoilRecover: 5.5,    // was 7 — settles slower
+    kickAmt: 0.13,         // was 0.05 — meaty shove
+    shakeAmt: 0.055,       // was 0.022 — sustained judder
   },
   boomstick: {
     name: 'Boomstick',
-    description: 'Bolt-action sniper. One shot, one mash — but the muzzle blast blinds and shakes you. T: Steady Breath — next shot has no flash, no shake, low recoil, 10s cooldown.',
+    description: 'Bolt-action sniper. One shot, one mash — slow chamber, slower walk. The muzzle blast blinds, shoves and shakes you. T: Steady Breath — next shot has no flash, no shake, low recoil, 10s cooldown.',
     crosshair: 'dot',
     special: { name: 'Steady Breath', kind: 'steady', cooldown: 10 },
     damage: 115,
-    fireRate: 1.1,
+    fireRate: 1.5,         // was 1.1 — slower between bolt cycles
     magSize: 5,
     reserve: 20,
-    reloadTime: 3.5,
+    reloadTime: 4.2,       // was 3.5 — longer reload arc
     spread: 0.0,
     adsSpread: 0.0,
     projectileSpeed: 260,
@@ -157,14 +157,14 @@ export const WEAPONS = {
     pellets: 1,
     viewmodelColor: 0x6b4a2a,
     zoomFOV: 11,
-    zoomMoveMult: 0.32,
-    moveSpeedMult: 0.82,   // bolt-action sniper — heavy, deliberate
+    zoomMoveMult: 0.26,    // was 0.32 — barely creeps when scoped
+    moveSpeedMult: 0.72,   // was 0.82 — heavy, deliberate walk
     scope: true,
-    recoilPitch: 0.32,
-    recoilYaw: 0.015,
-    recoilRecover: 5,
-    kickAmt: 0.34,
-    shakeAmt: 0.0,        // sniper already has its own big shake — don't double-stack
+    recoilPitch: 0.48,     // was 0.32 — savage kick up
+    recoilYaw: 0.020,      // was 0.015
+    recoilRecover: 3.5,    // was 5 — long re-settle after each shot
+    kickAmt: 0.52,         // was 0.34 — viewmodel pumps back
+    shakeAmt: 0.18,        // was 0.0 — now adds camera shake too
   },
   tossor: {
     name: 'Tater Tosser',

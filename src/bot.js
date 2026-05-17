@@ -560,6 +560,7 @@ export class Bot {
     this.onGround = true;
     this.dead = false;
     this.kills = 0;
+    this.streak = 0;
     this.radius = 0.6;
     this.spawnInvuln = SPAWN_INVULN;
 
@@ -1756,9 +1757,10 @@ export class Bot {
     const teamColor = TEAM_COLORS[this.team];
     this.healthBarFill.material.color.setHex(pct > 0.5 ? teamColor : pct > 0.25 ? 0xff8a3c : 0xff3a3a);
 
-    // Hot-streak aura: visible when kills >= 5. Pulse + counter-spin.
+    // Hot-streak aura: visible when CURRENT streak >= 5. Resets on death so
+    // a respawned bot doesn't inherit aura/glow from a previous life.
     if (this.aura) {
-      const streak = this.kills || 0;
+      const streak = this.streak || 0;
       if (streak >= 5) {
         this.aura.visible = true;
         if (this.auraInner) this.auraInner.visible = true;
@@ -2228,6 +2230,7 @@ export class Bot {
 
   die(attacker) {
     this.dead = true;
+    this.streak = 0;
     this.emitChat('death');
     // Notify buddy so they can react
     if (this.buddy && !this.buddy.dead) {

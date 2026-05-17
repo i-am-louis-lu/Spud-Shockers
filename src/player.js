@@ -281,12 +281,8 @@ export class Player {
     this.bobPhase = 0;
     this.ads = false;
     this.adsAmount = 0; // 0 = hipfire, 1 = full ADS
-    // Dash — Q key, 0.18s active, 3s cooldown
-    this.dashCooldown = 0;
-    this.dashTimer = 0;
+    // Knife right-click speed burst (kept on the knife class only)
     this._knifeDashCooldown = 0;
-    this.dashDirX = 0;
-    this.dashDirZ = 0;
     // Slide — C key while sprinting, 0.65s active, 1.5s cooldown.
     // Slide-hop: press Space mid-slide for a boosted jump (parkour combo).
     this.slideCooldown = 0;
@@ -520,7 +516,6 @@ export class Player {
       if (e.code === 'KeyB') this.game.toggleShop();
       if (e.code === 'KeyP') this.toggleSentry();
       if (e.code === 'KeyT') this.triggerSpecial();
-      if (e.code === 'KeyQ') this.tryDash();
       if (e.code === 'KeyC') this.trySlide();
       if (e.code === 'KeyF') this.toggleLockTarget();
       if (e.code === 'KeyY' || e.code === 'Enter') {
@@ -792,34 +787,8 @@ export class Player {
     if (this.game.sfx?.special) this.game.sfx.special();
   }
 
-  tryDash() {
-    if (this.dashCooldown > 0 || this.dashTimer > 0 || this.dead) return;
-    // Dash in current move-input direction; if no input, dash forward.
-    const forward = -Math.sin(this.yaw);
-    const forwardZ = -Math.cos(this.yaw);
-    const right = Math.cos(this.yaw);
-    const rightZ = -Math.sin(this.yaw);
-    let dx = 0, dz = 0;
-    if (this.keys.KeyW) { dx += forward; dz += forwardZ; }
-    if (this.keys.KeyS) { dx -= forward; dz -= forwardZ; }
-    if (this.keys.KeyD) { dx += right;   dz += rightZ; }
-    if (this.keys.KeyA) { dx -= right;   dz -= rightZ; }
-    if (dx === 0 && dz === 0) { dx = forward; dz = forwardZ; }
-    const m = Math.hypot(dx, dz) || 1;
-    this.dashDirX = dx / m;
-    this.dashDirZ = dz / m;
-    this.dashTimer = 0.18;
-    this.dashCooldown = 3;
-    // Cancel any active slide so dash takes over cleanly
-    if (this.slideTimer > 0) {
-      this.slideTimer = 0;
-      this.slideCooldown = 0.4;
-    }
-    if (this.game.sfx.special) this.game.sfx.special();
-  }
-
   trySlide() {
-    if (this.slideCooldown > 0 || this.slideTimer > 0 || this.dashTimer > 0 || this.dead) return;
+    if (this.slideCooldown > 0 || this.slideTimer > 0 || this.dead) return;
     if (!this.onGround) return;
     const sprinting = (this.keys.ShiftLeft || this.keys.ShiftRight) && !this.ads && !this.sentryActive;
     if (!sprinting) return;
@@ -1117,14 +1086,7 @@ export class Player {
     const speed = SPEED * speedMult;
     this.velocity.x = move.x * speed;
     this.velocity.z = move.z * speed;
-    // Dash override — slam in dash direction at high speed
-    if (this.dashCooldown > 0) this.dashCooldown = Math.max(0, this.dashCooldown - dt);
     if (this._knifeDashCooldown > 0) this._knifeDashCooldown = Math.max(0, this._knifeDashCooldown - dt);
-    if (this.dashTimer > 0) {
-      this.dashTimer -= dt;
-      this.velocity.x = this.dashDirX * SPEED * 3.6;
-      this.velocity.z = this.dashDirZ * SPEED * 3.6;
-    }
     // Slide override — slick floor effect with light steering. Slide-hop (jump
     // mid-slide) gives a boosted vertical kick + shorter cooldown.
     if (this.slideCooldown > 0) this.slideCooldown = Math.max(0, this.slideCooldown - dt);

@@ -788,6 +788,7 @@ export class Game {
       this.player.awardKill(victim);
     } else if (attacker && typeof attacker === 'object' && 'kills' in attacker && !attacker.dead) {
       attacker.kills++;
+      attacker.streak = (attacker.streak || 0) + 1;
       this.hud.addBotKillMessage(attacker.name, victim.name);
       // If this kill avenges the attacker's downed buddy, fire the avenged
       // line instead of the generic kill line — and tell their teammate they
@@ -805,8 +806,8 @@ export class Game {
       }
       // Most-Wanted threshold — when a bot crosses 4 kills, they call attention
       if (attacker.kills === 4 && attacker.emitChat) attacker.emitChat('bounty');
-      // Aura threshold — the 5-kill aura first lights up; bot taunts about it
-      if (attacker.kills === 5 && attacker.emitChat) {
+      // Aura threshold — the 5-streak aura first lights up; bot taunts about it
+      if (attacker.streak === 5 && attacker.emitChat) {
         attacker.lastChatTime = 0;
         attacker.emitChat('taunt');
       }
@@ -823,6 +824,7 @@ export class Game {
     this.creditTeamKill(attacker, this.player);
     if (attacker && typeof attacker === 'object' && 'kills' in attacker && !attacker.dead) {
       attacker.kills++;
+      attacker.streak = (attacker.streak || 0) + 1;
       this.hud.addBotKillMessage(attacker.name, 'You');
     }
     document.exitPointerLock();
