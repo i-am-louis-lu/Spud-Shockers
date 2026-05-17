@@ -3,6 +3,7 @@ import { WEAPONS, BASE_FOV } from './weapons.js';
 import { makePotato } from './potato.js';
 import { TEAM_COLORS } from './arena.js';
 import { getModel as getGunModel, isLoaded as gunIsLoaded, preloadAllGuns, loadGun, GUN_TUNING } from './gunmodels.js';
+import { makeCharacter, isCharacterReady } from './character.js';
 
 // Per-weapon ADS (right-click) pose. Every gun shares the same overall
 // concept — gun travels to screen center, rises to eye level, pulls toward
@@ -300,8 +301,14 @@ export class Player {
     // Third-person body — lives on layer 2 so it's INVISIBLE to the player's
     // own first-person camera (which renders layers 0+1) but VISIBLE to any
     // secondary cameras (DAD's split-screen view, future remote spectator
-    // cameras). Special "leader" design: gold crown + star aura + team cape.
-    this.bodyMesh = makePotato({ size: 1.8, color: 0xd9a86b });
+    // cameras). The body itself is either a Mixamo skinned character (once
+    // character.js has loaded the GLBs) or a potato fallback. Accessories
+    // — gold crown, team cape, star aura on the ground — sit on top of it
+    // either way.
+    this.bodyMesh = new THREE.Group();
+    this._bodyCore = null;
+    this.usingMixamoBody = false;
+    this._buildBodyCore();
     this.bodyMesh.traverse((o) => o.layers.set(2));
     // Team-color hat (kept as a field so we can recolor it on team switch)
     const teamCol = TEAM_COLORS[this.team] || 0xc23a3a;
@@ -681,6 +688,50 @@ export class Player {
     };
   }
   resetMatchStats() { this.matchStats = this.makeMatchStats(); }
+
+  // Build (or rebuild) the body core. Called once at construction and again
+  // the first time character.js becomes ready after construction. Replaces
+  // a potato fallback in-place with the Mixamo skinned model.
+  _buildBodyCore() {
+    if (this._bodyCore) {
+      this.bodyMesh.remove(this._bodyCore);
+      // Don't dispose Mixamo geometry — it's shared across all clones. The
+      // potato uses standard materials we own, so safe to dispose those.
+      if (!this.usingMixamoBody) {
+        this._bodyCore.traverse((o) => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) o.material.dispose();
+        });
+      } else if (this.bodyMixer) {
+        this.bodyMixer.stopAllAction();
+        this.bodyMixer = null;
+      }
+      this._bodyCore = null;
+    }
+    if (isCharacterReady()) {
+      const bundle = makeCharacter({ tint: 0xd9a86b });
+      // Mixamo origin is at feet — bodyMesh group is already at the player's
+      // ground level (position.y - EYE_HEIGHT), so feet at local y=0 lines up.
+      bundle.mesh.position.y = 0;
+      bundle.mesh.traverse((o) => o.layers.set(2));
+      this.bodyMesh.add(bundle.mesh);
+      this._bodyCore = bundle.mesh;
+      this.bodyMixer = bundle.mixer;
+      this.bodyActions = bundle.actions;
+      this.bodyPlay = bundle.play;
+      this.bodyPlay('walking', { loop: true, timeScale: 0 });
+      this.usingMixamoBody = true;
+    } else {
+      // Potato fallback — kept identical to the pre-Mixamo placement so
+      // its silhouette doesn't suddenly shift when character.js is slow
+      // to load.
+      const potato = makePotato({ size: 1.8, color: 0xd9a86b });
+      potato.traverse((o) => o.layers.set(2));
+      this.bodyMesh.add(potato);
+      this._bodyCore = potato;
+      this.usingMixamoBody = false;
+    }
+  }
 
   switchWeapon(name) {
     if (!WEAPONS[name] || name === this.currentWeapon) return;
@@ -1473,6 +1524,12 @@ export class Player {
     // Third-person body — tracks player position + facing. Crown spins, aura
     // pulses so the player is hyper-visible to anyone watching from outside.
     if (this.bodyMesh) {
+      // Hot-swap potato → Mixamo the first frame after character.js finishes
+      // loading. Player constructor runs before the GLBs finish downloading,
+      // so we always start with a potato fallback and upgrade in place.
+      if (!this.usingMixamoBody && isCharacterReady()) {
+        this._buildBodyCore();
+      }
       this.bodyMesh.position.set(this.position.x, this.position.y - EYE_HEIGHT, this.position.z);
       this.bodyMesh.rotation.y = this.yaw + Math.PI;       // face same direction as camera
       if (this.bodyCrown) this.bodyCrown.rotation.y += dt * 2.4;
@@ -1480,6 +1537,23 @@ export class Player {
         const t = performance.now() * 0.005;
         this.bodyAura.rotation.z += dt * 0.9;
         this.bodyAura.material.opacity = 0.45 + 0.25 * Math.sin(t);
+      }
+      // Animation state machine for Mixamo body. Priorities (high→low):
+      // reloading → sliding → airborne → moving (walk speed-scaled) → idle.
+      if (this.usingMixamoBody && this.bodyPlay) {
+        const moveSpd = Math.hypot(this.velocity.x, this.velocity.z);
+        if (this.reloading) {
+          this.bodyPlay('reloading', { loop: false, timeScale: 1.0 });
+        } else if (this.slideTimer > 0) {
+          this.bodyPlay('sliding', { loop: false, timeScale: 1.0 });
+        } else if (!this.onGround) {
+          this.bodyPlay('jumping', { loop: false, timeScale: 1.0 });
+        } else if (moveSpd > 0.4) {
+          this.bodyPlay('walking', { loop: true, timeScale: Math.min(1.6, moveSpd / 4) });
+        } else {
+          this.bodyPlay('walking', { loop: true, timeScale: 0 });
+        }
+        if (this.bodyMixer) this.bodyMixer.update(dt);
       }
       // Hide the body when dead so the corpse doesn't float around
       this.bodyMesh.visible = !this.dead;
