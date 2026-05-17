@@ -681,14 +681,17 @@ export class Player {
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
       const val = this._devState[key];
-      // Note: number input uses step="any" so the user can type ANY decimal
-      // (e.g. 0.0073 even when the slider's step is 0.005). Slider keeps
-      // its configured step for drag granularity.
+      // Number input has its own step so the up/down spinner arrows work
+      // properly (one arrow click = step). No min/max so you can type a
+      // value outside the slider's range if you need to. Typing any
+      // arbitrary decimal still works — browsers don't block typing, only
+      // soft-validate on blur, and our input handler accepts the value
+      // either way.
       row.innerHTML = `
         <label style="display:flex;align-items:center;gap:6px">
           <span style="display:inline-block;width:78px">${cfg.label}</span>
           <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-key="${key}" data-role="slider" style="flex:1">
-          <input type="number" step="any" value="${(+val).toFixed(4)}" data-key="${key}" data-role="number" style="width:74px;background:#000;color:#5effb8;border:1px solid #5effb8;font-family:monospace;font-size:11px;padding:1px 4px">
+          <input type="number" step="${cfg.step}" value="${(+val).toFixed(4)}" data-key="${key}" data-role="number" style="width:74px;background:#000;color:#5effb8;border:1px solid #5effb8;font-family:monospace;font-size:11px;padding:1px 4px">
         </label>
       `;
     }
