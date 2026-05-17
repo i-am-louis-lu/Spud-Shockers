@@ -245,6 +245,15 @@ const FPS_OFFSETS = {
     gunX: 0.000, gunY: -0.100, gunZ: -0.100,
     gunRotY: -0.05,
   },
+  // Hashbrowner (pump shotgun) — values measured 2026-05-17 by louis.
+  hashbrowner: {
+    armsX: 0.498, armsY: -1.774, armsZ: -0.117,
+    armsRotY: 3.38,
+    armsScale: 0.011,
+    gunX: 0.000, gunY: -0.0182, gunZ: -0.080,
+    gunRotY: 1.4,
+    gunScale: 0.515,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
@@ -621,7 +630,7 @@ export class Player {
       armsRotY: Math.PI,
       armsScale: 0.011,
       gunX: 0, gunY: 0, gunZ: 0,
-      gunRotY: 0,
+      gunRotX: 0, gunRotY: 0,
       gunScale: 1.0,
     };
     const panel = document.createElement('div');
@@ -655,6 +664,7 @@ export class Player {
       <div data-row="gunX"></div>
       <div data-row="gunY"></div>
       <div data-row="gunZ"></div>
+      <div data-row="gunRotX"></div>
       <div data-row="gunRotY"></div>
       <div data-row="gunScale"></div>
       <div style="margin-top:8px;text-align:center">
@@ -675,6 +685,7 @@ export class Player {
       gunX:      { label: 'Gun  X off',min: -0.02, max: 0.02, step: 0.0001 },
       gunY:      { label: 'Gun  Y off',min: -0.02, max: 0.02, step: 0.0001 },
       gunZ:      { label: 'Gun  Z off',min: -0.02, max: 0.02, step: 0.0001 },
+      gunRotX:   { label: 'Gun  RotX',  min: -0.8,  max: 0.8,  step: 0.005  },
       gunRotY:   { label: 'Gun  RotY',  min: -0.8,  max: 0.8,  step: 0.005  },
       gunScale:  { label: 'Gun  Scale', min: 0.3,   max: 3.0,  step: 0.005  },
     };
@@ -729,6 +740,7 @@ export class Player {
 Arms rotation Y: ${s.armsRotY.toFixed(3)}
 Arms scale: ${s.armsScale.toFixed(4)}
 Gun offset: (${s.gunX.toFixed(4)}, ${s.gunY.toFixed(4)}, ${s.gunZ.toFixed(4)})
+Gun rotation X: ${(s.gunRotX || 0).toFixed(3)}
 Gun rotation Y: ${(s.gunRotY || 0).toFixed(3)}
 Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       try { navigator.clipboard.writeText(out); } catch (_) {}
@@ -743,7 +755,7 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       Object.assign(this._devState, {
         armsX: 0, armsY: -1.65, armsZ: -0.2,
         armsRotY: Math.PI, armsScale: 0.011,
-        gunX: 0, gunY: 0, gunZ: 0, gunRotY: 0, gunScale: 1.0,
+        gunX: 0, gunY: 0, gunZ: 0, gunRotX: 0, gunRotY: 0, gunScale: 1.0,
       });
       this._syncDevSliders();
       this._applyDevState();
@@ -868,13 +880,16 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     //   - activeGunModel (loaded GLB wrap) is positioned at the gun's
     //     cfg.position via gunmodels.js, so its local Y rotation is also
     //     around its own center.
+    const rotX = s.gunRotX || 0;
     const rotY = s.gunRotY || 0;
     const scale = (s.gunScale == null || isNaN(s.gunScale)) ? 1 : s.gunScale;
     if (this.gunMesh) {
+      this.gunMesh.rotation.x = rotX;
       this.gunMesh.rotation.y = -0.05 + rotY;
       this.gunMesh.scale.setScalar(scale);
     }
     if (this.activeGunModel) {
+      this.activeGunModel.rotation.x = rotX;
       this.activeGunModel.rotation.y = rotY;
       this.activeGunModel.scale.setScalar(scale);
     }
