@@ -241,13 +241,17 @@ const FPS_OFFSETS = {
     gunRotY: 1.47,
     gunScale: 0.54,
   },
-  // Tater Tosser (grenade launcher) — values measured 2026-05-17 by louis.
+  // Tater Tosser (grenade launcher) — values measured 2026-05-17 by louis
+  // (rev 3:52 with full rotation + scale).
   tossor: {
     armsX: 0.284, armsY: -2.700, armsZ: 0.006,
     armsRotY: 3.09,
     armsScale: 0.0172,
-    gunX: 0.000, gunY: -0.100, gunZ: -0.100,
-    gunRotY: -0.05,
+    gunX: 0.000, gunY: -0.070, gunZ: -0.100,
+    gunRotX: -0.025,
+    gunRotY: -0.065,
+    gunRotZ: -1.495,
+    gunScale: 0.86,
   },
   // Hashbrowner (pump shotgun) — values measured 2026-05-17 by louis.
   hashbrowner: {
@@ -305,9 +309,6 @@ const FPS_OFFSETS = {
 // Knife is special-cased to HIDE the FPS arms entirely (see _updateFpsArmsVisibility).
 const NEUTRAL_ANIM = {
   spudgun: 'pistolWalk',
-  // Knife now uses the Stabbing clip's frame 0 as the resting "blade
-  // forward" pose; swinging plays the clip through and returns to frame 0.
-  knife: 'stabbing',
 };
 
 export class Player {
@@ -871,13 +872,19 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
   }
 
   // Pick the right "idle" arms pose for the equipped weapon and start it.
-  // Pistol-walk loops; everything else (reload / stab) freezes on frame 0
-  // as the resting grip pose.
+  // Knife is special-cased: arms vanish so only the procedural knife
+  // slash plays. Pistol-walk loops driven by bobPhase. Everything else
+  // freezes on frame 0 of the reload clip as the resting grip pose.
   _setFpsNeutralPose(weaponName) {
     if (!this.fpsArms || !this.fpsArmsActions) return;
     // Don't override an in-flight reload or stab — those will return to
     // neutral themselves when they finish.
     if (this._fpsArmsReloadActive || this._fpsArmsStabActive) return;
+    if (weaponName === 'knife') {
+      this.fpsArms.visible = false;
+      for (const a of Object.values(this.fpsArmsActions)) a.stop();
+      return;
+    }
     this.fpsArms.visible = true;
     const neutralName = NEUTRAL_ANIM[weaponName] || 'reloading';
     const act = this.fpsArmsActions[neutralName];
