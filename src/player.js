@@ -523,6 +523,16 @@ export class Player {
           bundle.mesh.position.add(delta);
           this.fpsArmsRightHand = rightHand;
         }
+        // Sync the dev-panel sliders so toggling F9 doesn't teleport the
+        // arms back to the defaults the moment you touch a slider.
+        if (this._devState) {
+          this._devState.armsX = bundle.mesh.position.x;
+          this._devState.armsY = bundle.mesh.position.y;
+          this._devState.armsZ = bundle.mesh.position.z;
+          this._devState.armsRotY = bundle.mesh.rotation.y;
+          this._devState.armsScale = bundle.mesh.scale.x;
+          this._syncDevSliders();
+        }
         this.fpsArms = bundle.mesh;
         this.fpsArmsMixer = bundle.mixer;
         this.fpsArmsActions = bundle.actions;
@@ -544,27 +554,113 @@ export class Player {
   }
 
   // In-game positioning tool for the FPS arms and gun. Toggle with F9.
-  // Use the panel to dial in offsets that look right, press ; to log them,
-  // paste the values into _tryInitFpsArms / gunMesh defaults to bake them.
+  // Renders a slider panel — drag the sliders, watch the model update live,
+  // hit COPY to grab the values so I can bake them in as defaults.
   _setupDevPanel() {
     if (this._devPanel) return;
+    this._devMode = false;
+    this._gunDevOffset = new THREE.Vector3();
+    // State for sliders — defaults match the initial values set elsewhere
+    this._devState = {
+      armsX: 0, armsY: -1.65, armsZ: -0.2,
+      armsRotY: Math.PI,
+      armsScale: 0.011,
+      gunX: 0, gunY: 0, gunZ: 0,
+    };
     const panel = document.createElement('div');
     panel.id = 'fps-dev-panel';
     panel.style.cssText = [
       'position:fixed', 'top:10px', 'right:10px', 'z-index:9999',
-      'background:rgba(0,0,0,0.78)', 'color:#5effb8',
-      'font:11px/1.4 monospace', 'padding:10px 14px', 'border-radius:6px',
-      'pointer-events:none', 'display:none', 'white-space:pre',
-      'border:1px solid #5effb8',
+      'background:rgba(0,0,0,0.85)', 'color:#5effb8',
+      'font:11px/1.5 monospace', 'padding:10px 12px', 'border-radius:8px',
+      'display:none', 'border:1px solid #5effb8',
+      'min-width:260px',
     ].join(';');
+    panel.innerHTML = `
+      <div style="font-weight:bold;margin-bottom:6px;border-bottom:1px solid #5effb8;padding-bottom:4px">
+        F9 DEV MODE — arms/gun positioner
+      </div>
+      <div data-row="armsX"></div>
+      <div data-row="armsY"></div>
+      <div data-row="armsZ"></div>
+      <div data-row="armsRotY"></div>
+      <div data-row="armsScale"></div>
+      <div style="height:6px"></div>
+      <div data-row="gunX"></div>
+      <div data-row="gunY"></div>
+      <div data-row="gunZ"></div>
+      <div style="margin-top:8px;text-align:center">
+        <button id="dev-copy" style="background:#5effb8;color:#000;border:0;padding:4px 12px;font-family:monospace;cursor:pointer;border-radius:4px">COPY VALUES</button>
+        <button id="dev-reset" style="background:#444;color:#5effb8;border:1px solid #5effb8;padding:4px 8px;font-family:monospace;cursor:pointer;border-radius:4px;margin-left:6px">RESET</button>
+      </div>
+      <div id="dev-status" style="margin-top:6px;font-size:10px;opacity:0.7;text-align:center;min-height:14px"></div>
+    `;
     document.body.appendChild(panel);
     this._devPanel = panel;
-    this._devMode = false;
-    this._devSelected = 'arms';        // 'arms' | 'gun'
-    this._gunDevOffset = new THREE.Vector3();
+
+    const sliderRows = {
+      armsX:     { label: 'Arms X',    min: -1.5, max: 1.5,  step: 0.005 },
+      armsY:     { label: 'Arms Y',    min: -3,   max: 1,    step: 0.005 },
+      armsZ:     { label: 'Arms Z',    min: -1.5, max: 1,    step: 0.005 },
+      armsRotY:  { label: 'Arms RotY', min: 0,    max: 6.30, step: 0.01  },
+      armsScale: { label: 'Arms Scale',min: 0.001,max: 0.04, step: 0.0005 },
+      gunX:      { label: 'Gun  X off',min: -0.8, max: 0.8,  step: 0.005 },
+      gunY:      { label: 'Gun  Y off',min: -0.8, max: 0.8,  step: 0.005 },
+      gunZ:      { label: 'Gun  Z off',min: -0.8, max: 0.8,  step: 0.005 },
+    };
+    for (const [key, cfg] of Object.entries(sliderRows)) {
+      const row = panel.querySelector(`[data-row="${key}"]`);
+      const val = this._devState[key];
+      row.innerHTML = `
+        <label style="display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:80px">${cfg.label}</span>
+          <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-key="${key}" style="flex:1">
+          <span class="dev-val" data-key="${key}" style="display:inline-block;width:54px;text-align:right">${(+val).toFixed(3)}</span>
+        </label>
+      `;
+    }
+    panel.addEventListener('input', (e) => {
+      const tgt = e.target;
+      if (tgt.tagName !== 'INPUT') return;
+      const key = tgt.dataset.key;
+      if (!key) return;
+      const v = parseFloat(tgt.value);
+      this._devState[key] = v;
+      const label = panel.querySelector(`.dev-val[data-key="${key}"]`);
+      if (label) label.textContent = v.toFixed(3);
+      this._applyDevState();
+    });
+    panel.querySelector('#dev-copy').addEventListener('click', () => {
+      const s = this._devState;
+      const out =
+`Arms position: (${s.armsX.toFixed(3)}, ${s.armsY.toFixed(3)}, ${s.armsZ.toFixed(3)})
+Arms rotation Y: ${s.armsRotY.toFixed(3)}
+Arms scale: ${s.armsScale.toFixed(4)}
+Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
+      try { navigator.clipboard.writeText(out); } catch (_) {}
+      console.log(out);
+      const status = panel.querySelector('#dev-status');
+      if (status) {
+        status.textContent = 'Copied! Paste back in chat.';
+        setTimeout(() => { status.textContent = ''; }, 2000);
+      }
+    });
+    panel.querySelector('#dev-reset').addEventListener('click', () => {
+      Object.assign(this._devState, {
+        armsX: 0, armsY: -1.65, armsZ: -0.2,
+        armsRotY: Math.PI, armsScale: 0.011,
+        gunX: 0, gunY: 0, gunZ: 0,
+      });
+      panel.querySelectorAll('input[data-key]').forEach((inp) => {
+        const k = inp.dataset.key;
+        inp.value = this._devState[k];
+        const label = panel.querySelector(`.dev-val[data-key="${k}"]`);
+        if (label) label.textContent = (+this._devState[k]).toFixed(3);
+      });
+      this._applyDevState();
+    });
+
     document.addEventListener('keydown', (e) => {
-      // Don't grab keystrokes when the user is typing in chat / sign-in /
-      // any text input — would otherwise eat letters as they type their name.
       const ae = document.activeElement;
       if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
       if (this.chatOpen) return;
@@ -572,79 +668,37 @@ export class Player {
         e.preventDefault();
         this._devMode = !this._devMode;
         panel.style.display = this._devMode ? 'block' : 'none';
-        return;
-      }
-      if (!this._devMode) return;
-      // Q swaps between adjusting arms vs gun (Q is free since the dash
-      // mechanic was removed earlier).
-      if (e.code === 'KeyQ') {
-        e.preventDefault();
-        this._devSelected = this._devSelected === 'arms' ? 'gun' : 'arms';
-        return;
-      }
-      const step = e.shiftKey ? 0.005 : 0.025;
-      const isArms = this._devSelected === 'arms';
-      const target = isArms ? this.fpsArms : null;   // gun handled via offset
-      const offset = isArms ? null : this._gunDevOffset;
-      let dx = 0, dy = 0, dz = 0;
-      switch (e.code) {
-        case 'KeyJ': dx = -step; break;
-        case 'KeyL': dx =  step; break;
-        case 'KeyI': dy =  step; break;
-        case 'KeyK': dy = -step; break;
-        case 'KeyU': dz = -step; break;   // forward (away from camera in viewmodel-local)
-        case 'KeyO': dz =  step; break;   // backward
-        case 'Comma':
-          if (isArms && this.fpsArms) this.fpsArms.scale.multiplyScalar(0.95);
-          e.preventDefault();
-          return;
-        case 'Period':
-          if (isArms && this.fpsArms) this.fpsArms.scale.multiplyScalar(1.05);
-          e.preventDefault();
-          return;
-        case 'Semicolon':
-          // Spit values to console — paste into _tryInitFpsArms / gunMesh defaults
-          if (this.fpsArms) {
-            console.log('Arms position:', this.fpsArms.position.toArray().map(v => v.toFixed(3)));
-            console.log('Arms scale (top-level):', this.fpsArms.scale.x.toFixed(4));
-          }
-          console.log('Gun offset:', this._gunDevOffset.toArray().map(v => v.toFixed(3)));
-          e.preventDefault();
-          return;
-        default:
-          return;
-      }
-      e.preventDefault();
-      if (target) {
-        target.position.x += dx;
-        target.position.y += dy;
-        target.position.z += dz;
-      }
-      if (offset) {
-        offset.x += dx;
-        offset.y += dy;
-        offset.z += dz;
+        if (this._devMode && document.pointerLockElement) document.exitPointerLock();
       }
     });
   }
 
-  _updateDevPanel() {
-    if (!this._devMode || !this._devPanel) return;
-    const a = this.fpsArms ? this.fpsArms.position : { x: 0, y: 0, z: 0 };
-    const s = this.fpsArms ? this.fpsArms.scale.x : 1;
-    const g = this._gunDevOffset || { x: 0, y: 0, z: 0 };
-    const sel = this._devSelected.toUpperCase();
-    this._devPanel.textContent =
-      `[F9] DEV MODE — target: ${sel}    [Q] swap target\n` +
-      `Arms pos: ${a.x.toFixed(3)}, ${a.y.toFixed(3)}, ${a.z.toFixed(3)}\n` +
-      `Arms scale: ${s.toFixed(4)}\n` +
-      `Gun offset: ${g.x.toFixed(3)}, ${g.y.toFixed(3)}, ${g.z.toFixed(3)}\n` +
-      `\n` +
-      `IJKL = move XY,  UO = move Z\n` +
-      `Shift = fine step (5×slower)\n` +
-      `, / . = arms scale  ;  = print values\n` +
-      `F9 = exit dev mode`;
+  _applyDevState() {
+    const s = this._devState;
+    if (this.fpsArms) {
+      this.fpsArms.position.set(s.armsX, s.armsY, s.armsZ);
+      this.fpsArms.rotation.y = s.armsRotY;
+      this.fpsArms.scale.setScalar(s.armsScale);
+    }
+    this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
   }
+
+  // Reflect current _devState values back into the slider DOM so the UI
+  // stays consistent with anything that mutates _devState programmatically
+  // (e.g. the auto-align init pass setting the post-shift position).
+  _syncDevSliders() {
+    if (!this._devPanel) return;
+    this._devPanel.querySelectorAll('input[data-key]').forEach((inp) => {
+      const k = inp.dataset.key;
+      if (this._devState[k] != null) {
+        inp.value = this._devState[k];
+        const label = this._devPanel.querySelector(`.dev-val[data-key="${k}"]`);
+        if (label) label.textContent = (+this._devState[k]).toFixed(3);
+      }
+    });
+  }
+
+  _updateDevPanel() { /* sliders update themselves, nothing to do per-frame */ }
 
   // Kick off the knife stab animation. Uses crossFadeFrom on the running
   // reload (neutral grip) action so the arms MORPH into the stab pose
