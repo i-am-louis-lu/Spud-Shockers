@@ -613,6 +613,7 @@ export class Player {
       armsRotY: Math.PI,
       armsScale: 0.011,
       gunX: 0, gunY: 0, gunZ: 0,
+      gunRotY: 0,
     };
     const panel = document.createElement('div');
     panel.id = 'fps-dev-panel';
@@ -645,6 +646,7 @@ export class Player {
       <div data-row="gunX"></div>
       <div data-row="gunY"></div>
       <div data-row="gunZ"></div>
+      <div data-row="gunRotY"></div>
       <div style="margin-top:8px;text-align:center">
         <button id="dev-copy" style="background:#5effb8;color:#000;border:0;padding:4px 12px;font-family:monospace;cursor:pointer;border-radius:4px">COPY VALUES</button>
         <button id="dev-reset" style="background:#444;color:#5effb8;border:1px solid #5effb8;padding:4px 8px;font-family:monospace;cursor:pointer;border-radius:4px;margin-left:6px">RESET</button>
@@ -663,6 +665,7 @@ export class Player {
       gunX:      { label: 'Gun  X off',min: -0.02, max: 0.02, step: 0.0001 },
       gunY:      { label: 'Gun  Y off',min: -0.02, max: 0.02, step: 0.0001 },
       gunZ:      { label: 'Gun  Z off',min: -0.02, max: 0.02, step: 0.0001 },
+      gunRotY:   { label: 'Gun  RotY',  min: -0.8,  max: 0.8,  step: 0.005  },
     };
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
@@ -696,7 +699,8 @@ export class Player {
 `Arms position: (${s.armsX.toFixed(3)}, ${s.armsY.toFixed(3)}, ${s.armsZ.toFixed(3)})
 Arms rotation Y: ${s.armsRotY.toFixed(3)}
 Arms scale: ${s.armsScale.toFixed(4)}
-Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
+Gun offset: (${s.gunX.toFixed(4)}, ${s.gunY.toFixed(4)}, ${s.gunZ.toFixed(4)})
+Gun rotation Y: ${(s.gunRotY || 0).toFixed(3)}`;
       try { navigator.clipboard.writeText(out); } catch (_) {}
       console.log(out);
       const status = panel.querySelector('#dev-status');
@@ -709,7 +713,7 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
       Object.assign(this._devState, {
         armsX: 0, armsY: -1.65, armsZ: -0.2,
         armsRotY: Math.PI, armsScale: 0.011,
-        gunX: 0, gunY: 0, gunZ: 0,
+        gunX: 0, gunY: 0, gunZ: 0, gunRotY: 0,
       });
       this._syncDevSliders();
       this._applyDevState();
@@ -822,6 +826,7 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
     // Apply via the gunOffsetGroup transform — set once, no per-frame add.
     if (this.gunOffsetGroup) {
       this.gunOffsetGroup.position.set(s.gunX, s.gunY, s.gunZ);
+      this.gunOffsetGroup.rotation.y = s.gunRotY || 0;
     }
     // Keep _gunDevOffset around for the COPY-values readout; not used live.
     if (this._gunDevOffset) this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
