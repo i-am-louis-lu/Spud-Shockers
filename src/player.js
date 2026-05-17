@@ -1828,6 +1828,52 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
         }
       }
       if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);
+
+      // Glue the gun to the right-hand bone: sample the hand's world
+      // position each frame, compare to a slow exponential moving average
+      // (the "rest" position averaged over recent frames), apply the delta
+      // to gunOffsetGroup. So when the walking animation swings the hand
+      // in a small ellipse, the gun follows that ellipse — no more sine-vs-
+      // ellipse desync between gun and arms.
+      if (
+        this.fpsArmsRightHand &&
+        this.gunOffsetGroup &&
+        this._devState &&
+        this.currentWeapon === 'spudgun' &&
+        !this._fpsArmsReloadActive &&
+        !this._fpsArmsStabActive
+      ) {
+        this.fpsArmsRightHand.updateMatrixWorld(true);
+        const handPos = new THREE.Vector3();
+        this.fpsArmsRightHand.getWorldPosition(handPos);
+        this.viewmodel.worldToLocal(handPos);
+        if (!this._handEMA) {
+          this._handEMA = handPos.clone();
+        } else {
+          // Track slowly so the EMA = average position over ~1-2 walk cycles
+          this._handEMA.lerp(handPos, 0.03);
+        }
+        const dx = handPos.x - this._handEMA.x;
+        const dy = handPos.y - this._handEMA.y;
+        const dz = handPos.z - this._handEMA.z;
+        this.gunOffsetGroup.position.set(
+          this._devState.gunX + dx,
+          this._devState.gunY + dy,
+          this._devState.gunZ + dz,
+        );
+      } else if (
+        this.gunOffsetGroup &&
+        this._devState &&
+        (this.currentWeapon !== 'spudgun' || this._fpsArmsReloadActive || this._fpsArmsStabActive)
+      ) {
+        // Not in spudgun-walking mode — reset to base offset (no delta)
+        this.gunOffsetGroup.position.set(
+          this._devState.gunX,
+          this._devState.gunY,
+          this._devState.gunZ,
+        );
+        if (this.currentWeapon !== 'spudgun') this._handEMA = null;
+      }
     }
 
     if (this.reloading) {
