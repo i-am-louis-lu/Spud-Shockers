@@ -604,9 +604,9 @@ export class Player {
       armsZ:     { label: 'Arms Z',    min: -0.8, max: 0.4,  step: 0.001 },
       armsRotY:  { label: 'Arms RotY', min: 0,    max: 6.30, step: 0.005 },
       armsScale: { label: 'Arms Scale',min: 0.001,max: 0.025,step: 0.0002 },
-      gunX:      { label: 'Gun  X off',min: -0.15, max: 0.15, step: 0.0005 },
-      gunY:      { label: 'Gun  Y off',min: -0.15, max: 0.15, step: 0.0005 },
-      gunZ:      { label: 'Gun  Z off',min: -0.15, max: 0.15, step: 0.0005 },
+      gunX:      { label: 'Gun  X off',min: -0.02, max: 0.02, step: 0.0001 },
+      gunY:      { label: 'Gun  Y off',min: -0.02, max: 0.02, step: 0.0001 },
+      gunZ:      { label: 'Gun  Z off',min: -0.02, max: 0.02, step: 0.0001 },
     };
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
