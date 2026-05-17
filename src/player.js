@@ -230,6 +230,13 @@ const FPS_OFFSETS = {
     armsScale: 0.011,
     gunX: -0.150, gunY: -0.009, gunZ: 0.000,
   },
+  // Fry-er (full-auto AR) — values measured 2026-05-17 by louis.
+  fryer: {
+    armsX: 0.231, armsY: -1.712, armsZ: 0.012,
+    armsRotY: 3.16,
+    armsScale: 0.0108,
+    gunX: -0.150, gunY: 0.004, gunZ: 0.0036,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
@@ -570,20 +577,21 @@ export class Player {
           armsScale: bundle.mesh.scale.x,
           gunX: 0, gunY: 0, gunZ: 0,
         };
-        // Apply offsets for the currently-equipped weapon now that arms exist.
-        this._applyFpsOffsetsForWeapon(this.currentWeapon);
+        // CRITICAL: assign this.fpsArms / mixer / actions BEFORE calling
+        // _applyFpsOffsetsForWeapon below. That function has an early-return
+        // guard `if (!this.fpsArms || !this._devState) return;` — if we run
+        // it before these assignments, the per-weapon offsets and neutral
+        // pose never get set on first load, which was the "arms wrong on
+        // first load, fixed by swapping weapons" bug.
         this.fpsArms = bundle.mesh;
         this.fpsArmsMixer = bundle.mixer;
         this.fpsArmsActions = bundle.actions;
-        // Neutral grip = frame 0 of the reloading clip (hands forward on weapon)
-        const rel = this.fpsArmsActions?.reloading;
-        if (rel) {
-          rel.setLoop(THREE.LoopOnce, 1);
-          rel.clampWhenFinished = true;
-          rel.reset();
-          rel.timeScale = 0;
-          rel.play();
-        }
+        // Apply offsets for the currently-equipped weapon now that arms exist.
+        // This also calls _setFpsNeutralPose() which starts the right clip
+        // (pistolWalk for spudgun, reload frame-0 grip for everything else,
+        // hidden for knife). Replaces the old hardcoded "Neutral grip"
+        // block that always picked reloading.
+        this._applyFpsOffsetsForWeapon(this.currentWeapon);
       } catch (err) {
         console.warn('[player] FPS arms init failed', err);
       } finally {
