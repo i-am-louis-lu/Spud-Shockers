@@ -287,6 +287,16 @@ const FPS_OFFSETS = {
     gunRotY: -3.5,
     gunScale: 0.3,
   },
+  // Spudgun (pistol) — values measured 2026-05-17 by louis (3:48 PM).
+  // Uses Pistol-Walk clip as neutral (driven by bobPhase).
+  spudgun: {
+    armsX: 0.351, armsY: -1.610, armsZ: -0.037,
+    armsRotY: 3.345,
+    armsScale: 0.0102,
+    gunX: -0.100, gunY: -0.0038, gunZ: -0.350,
+    gunRotY: 1.5,
+    gunScale: 0.39,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
