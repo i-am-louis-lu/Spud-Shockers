@@ -488,16 +488,23 @@ export class Player {
           this._fpsArmsBusy = false;
           return;
         }
-        bundle.mesh.position.set(0, -1.55, 0);   // eye at neck height
+        // Push character BEHIND the camera (positive Z in camera-local is
+        // behind the lens) so the torso/chest is invisible and only the arms
+        // extend forward into camera view. Lower Y so feet are well below
+        // eye level.
+        bundle.mesh.position.set(0, -1.4, 0.45);
         bundle.mesh.rotation.y = Math.PI;        // arms reach into camera -Z
         bundle.mesh.traverse((o) => {
           // Layer 1 is the first-person camera's enabled layer (alongside 0).
           o.layers.set(1);
           if (o.isBone) {
             const n = o.name || '';
-            // Hide everything that's not arms-and-hands so just the limbs
-            // emerge into the camera frustum.
-            if (/Head|Neck|UpLeg|^.*Leg$|Foot|Toe|Hips$/.test(n)) {
+            // Hide head, neck, hips area, and all leg bones. We CAN'T scale
+            // Spine/Spine1/Spine2 — those are parents of the Shoulder→Arm
+            // chain, so collapsing them would collapse the arms too. The
+            // visible torso geometry has to be hidden via positioning
+            // instead (character is pushed back behind the camera).
+            if (/Head|Neck|^.*UpLeg$|^.*Leg$|Foot|Toe|Hips$/.test(n)) {
               o.scale.setScalar(0.001);
             }
           }

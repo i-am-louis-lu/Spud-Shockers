@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Mixamo characters are modelled in centimeters; scale down to meters.
-const MIXAMO_SCALE = 0.011;
+const MIXAMO_SCALE = 0.009;
 
 const FILES = {
   walking:   'assets/character/mx_Walking.glb',
