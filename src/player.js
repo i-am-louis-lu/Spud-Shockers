@@ -458,6 +458,17 @@ export class Player {
     game.camera.add(this.viewmodel);
     game.scene.add(game.camera);
 
+    // First-person arms — a SECOND Mixamo character lives in camera space
+    // (layer 1) and only shows during reloads. Head and lower body bones are
+    // scaled to ~zero so only the arms protrude into the camera frustum.
+    // Stays null until character.js loads (we retry in update).
+    this.fpsArms = null;
+    this.fpsArmsMixer = null;
+    this.fpsArmsActions = null;
+    this.fpsArmsPlay = null;
+    this._fpsArmsReloadActive = false;
+    this._tryInitFpsArms();
+
     // Try to mount the real GLB for the starting weapon. If it isn't loaded
     // yet, _swapGunModel will retry when the load resolves.
     this._swapGunModel(this.currentWeapon);
@@ -731,6 +742,35 @@ export class Player {
       this._bodyCore = potato;
       this.usingMixamoBody = false;
     }
+  }
+
+  // First-person Mixamo arms — second clone parented to the FPS camera. Hide
+  // the head + lower body + non-arm spine bones so only the arms emerge into
+  // the camera frame. Idempotent + safe to call on every update.
+  _tryInitFpsArms() {
+    if (this.fpsArms || !isCharacterReady()) return;
+    const bundle = makeCharacter({ tint: 0xd9a86b });
+    bundle.mesh.position.set(0, -1.55, 0);   // drop so eye level lands at character neck
+    bundle.mesh.rotation.y = Math.PI;        // face camera's looking direction
+    bundle.mesh.traverse((o) => {
+      // Layer 1 — visible to first-person camera (which renders layers 0+1)
+      o.layers.set(1);
+      if (o.isBone) {
+        const n = o.name || '';
+        // Hide head/face, neck, hips, and all leg bones. Leave shoulders,
+        // arms, forearms, hands, and fingers at full scale so the user
+        // actually sees realistic arms instead of a torso pancake.
+        if (/Head|Neck|UpLeg|^.*Leg$|Foot|Toe|Hips$/.test(n)) {
+          o.scale.setScalar(0.001);
+        }
+      }
+    });
+    this.viewmodel.add(bundle.mesh);
+    this.fpsArms = bundle.mesh;
+    this.fpsArmsMixer = bundle.mixer;
+    this.fpsArmsActions = bundle.actions;
+    this.fpsArmsPlay = bundle.play;
+    this.fpsArms.visible = false;  // only shown during reload
   }
 
   switchWeapon(name) {
@@ -1278,6 +1318,32 @@ export class Player {
     this.muzzleKick = Math.max(0, this.muzzleKick - dt * 6);
     // Crosshair kick — fast decay so it pops & snaps back
     this.crosshairKick = Math.max(0, (this.crosshairKick || 0) - dt * 6.5);
+
+    // FPS arms lazy-init in case character.js loaded after construction
+    this._tryInitFpsArms();
+    // FPS arms reload visual — show the skinned arms (and hide the gun) for
+    // the duration of the reload. Driven off `this.reloading` edges so it
+    // self-cleans on weapon swaps / cancels / death (all of which flip
+    // reloading=false elsewhere).
+    if (this.fpsArmsPlay) {
+      if (this.reloading && !this._fpsArmsReloadActive) {
+        this._fpsArmsReloadActive = true;
+        this.fpsArms.visible = true;
+        if (this.gunHolder) this.gunHolder.visible = false;
+        if (this.gunMesh) this.gunMesh.visible = false;
+        // Time-stretch the reload clip to fit the configured reload duration
+        const targetSec = Math.max(0.2, this._reloadTotal || this.reloadTimer || 1);
+        const clip = this.fpsArmsActions.reloading?.getClip();
+        const ts = clip ? clip.duration / targetSec : 1;
+        this.fpsArmsPlay('reloading', { loop: false, timeScale: ts, fadeMs: 80 });
+      } else if (!this.reloading && this._fpsArmsReloadActive) {
+        this._fpsArmsReloadActive = false;
+        this.fpsArms.visible = false;
+        if (this.gunHolder) this.gunHolder.visible = true;
+        if (this.gunMesh) this.gunMesh.visible = true;
+      }
+      if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);
+    }
 
     if (this.reloading) {
       this.reloadTimer -= dt;
