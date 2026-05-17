@@ -787,6 +787,23 @@ export class Player {
     if (this.game.sfx?.special) this.game.sfx.special();
   }
 
+  // Called when player presses R with no reserve ammo. Drops a single
+  // emergency ammo crate near them once per life so reload-button-mashing
+  // never leads to a dead end. Resets to false on respawn.
+  _requestEmergencyAmmo() {
+    if (this._emergencyAmmoUsed) {
+      if (this.game?.hud?.addPickupMessage) {
+        this.game.hud.addPickupMessage('NO AMMO — find a crate');
+      }
+      if (this.game?.sfx?.lowAmmo) this.game.sfx.lowAmmo();
+      return;
+    }
+    this._emergencyAmmoUsed = true;
+    if (this.game?.spawnEmergencyAmmoCrate) {
+      this.game.spawnEmergencyAmmoCrate(this);
+    }
+  }
+
   trySlide() {
     if (this.slideCooldown > 0 || this.slideTimer > 0 || this.dead) return;
     if (!this.onGround) return;
@@ -867,7 +884,13 @@ export class Player {
     const w = WEAPONS[this.currentWeapon];
     const a = this.ammo[this.currentWeapon];
     if (w.melee) return;
-    if (this.reloading || a.mag === w.magSize || a.reserve === 0) return;
+    if (this.reloading || a.mag === w.magSize) return;
+    if (a.reserve === 0) {
+      // Out of reserve — call in an emergency ammo crate the first time per
+      // life so you're never stuck pressing R with nothing happening.
+      this._requestEmergencyAmmo();
+      return;
+    }
     this.reloading = true;
     const reloadMult = this.buffs.reload?.mult ?? 1;
     const ksReloadMult = this.game.killstreakEffects?.reloadBoost?.mult ?? 1;
@@ -1744,6 +1767,7 @@ export class Player {
     this.health = this.maxHealth;
     this.dead = false;
     this.spawnInvuln = SPAWN_INVULN;
+    this._emergencyAmmoUsed = false;
     const sp = this.game.arena.teamSpawns[this.team];
     const choice = sp[Math.floor(Math.random() * sp.length)];
     this.position.set(choice.x, choice.y + EYE_HEIGHT - 0.85, choice.z);

@@ -231,6 +231,7 @@ export class Game {
     this.projectiles = [];
     this.floaters = [];
     this.hitBursts = [];
+    this.airdrops = [];
     this.firstBloodTaken = false;
     this.pickups = this.arena.pickupSpawns.map((s) => new Pickup(this, s.type, s.position));
     this.matchGoal = MATCH_GOAL;
@@ -398,6 +399,7 @@ export class Game {
       if (this.remotePlayer) this.remotePlayer.update(dt);
       for (const p of this.projectiles) p.update(dt);
       for (const pk of this.pickups) pk.update(dt);
+      this.updateAirdrops(dt);
       this.bots = this.bots.filter((b) => !b.dead);
       this.projectiles = this.projectiles.filter((p) => !p.dead);
       this.pickups = this.pickups.filter((pk) => !pk._disposed);
@@ -970,18 +972,10 @@ export class Game {
       player.health = Math.min(player.maxHealth, player.health + 30);
       this.killstreakEffects.dmgBoost = { mult: 1.5, timer: 4 };
     } else if (ks.count === 4) {
-      // AIRDROP — spawn a RARE loot crate 1.5m in front of the player so it's
-      // an instant grab. Uses the existing ephemeral pickup pipeline.
-      const facing = new THREE.Vector3(
-        -Math.sin(player.yaw),
-        0,
-        -Math.cos(player.yaw)
-      );
-      const dropPos = player.position.clone().addScaledVector(facing, 1.5);
-      dropPos.y = Math.max(dropPos.y, 1.2);
-      const crate = new Pickup(this, 'loot', dropPos, { tier: 'rare', ephemeral: true });
-      this.pickups.push(crate);
-      if (this.sfx && this.sfx.airdrop) this.sfx.airdrop();
+      // AIRDROP — drop a visible crate from the sky onto a marked ground spot
+      // ~14m in front of the player, with a beacon so allies and enemies can
+      // see it falling. Loot spawns when the crate touches down.
+      this.spawnAirdrop(player);
     } else if (ks.count === 5) {
       // Resupply — full ammo + coins
       const cur = player.currentWeapon;
@@ -1045,6 +1039,159 @@ export class Game {
       hud.classList.remove('streak-glow');
       hud.classList.remove('streak-invuln');
     }
+  }
+
+  // AIRDROP — physical falling crate with a parachute and a ground beacon.
+  // Aims ~14m ahead of the player and slightly above ground so it can't clip
+  // into walls (best-effort, no raycast). When it lands, spawns a real
+  // ephemeral rare-loot Pickup at the impact point.
+  spawnAirdrop(player) {
+    const facing = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    const ground = player.position.clone().addScaledVector(facing, 14);
+    ground.y = 0.4;
+
+    const crateGroup = new THREE.Group();
+    const crate = new THREE.Mesh(
+      new THREE.BoxGeometry(1.1, 1.1, 1.1),
+      new THREE.MeshStandardMaterial({ color: 0xb86a2e, roughness: 0.75, metalness: 0.1 }),
+    );
+    crate.castShadow = true;
+    crateGroup.add(crate);
+    // Yellow caution stripe so it pops against the sky
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(1.16, 0.22, 1.16),
+      new THREE.MeshBasicMaterial({ color: 0xffd24a }),
+    );
+    crateGroup.add(stripe);
+    // Parachute — open cone above the crate
+    const chute = new THREE.Mesh(
+      new THREE.ConeGeometry(1.9, 1.7, 14, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xff8a3c,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95,
+      }),
+    );
+    chute.position.y = 1.65;
+    crateGroup.add(chute);
+    // Cords from crate corners to chute apex (suggestion of rigging)
+    const cordMat = new THREE.LineBasicMaterial({ color: 0x402010 });
+    const corners = [
+      [ 0.55, 0.55,  0.55], [-0.55, 0.55,  0.55],
+      [ 0.55, 0.55, -0.55], [-0.55, 0.55, -0.55],
+    ];
+    for (const c of corners) {
+      const g = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(c[0], c[1], c[2]),
+        new THREE.Vector3(0, 1.55, 0),
+      ]);
+      crateGroup.add(new THREE.Line(g, cordMat));
+    }
+    crateGroup.position.set(ground.x, 28, ground.z);
+    this.scene.add(crateGroup);
+
+    // Ground beacon — translucent cylinder from ground up so everyone can see
+    // exactly where the drop is heading.
+    const beacon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.65, 0.65, 30, 16, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xffd24a,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    beacon.position.set(ground.x, 15, ground.z);
+    this.scene.add(beacon);
+    // Landing ring on the ground
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.5, 2.2, 36),
+      new THREE.MeshBasicMaterial({
+        color: 0xffd24a,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(ground.x, 0.06, ground.z);
+    this.scene.add(ring);
+
+    this.airdrops.push({
+      crateGroup, beacon, ring,
+      y: 28,
+      vy: -2,           // small initial drop speed, parachute keeps it slow
+      targetY: 0.55,    // crate body sits ~0.55 above ground
+      targetPos: ground.clone(),
+      age: 0,
+    });
+
+    this.announceStreak('AIRDROP INBOUND — grab the crate', '#a4d8ff', 5);
+    if (this.sfx && this.sfx.airdrop) this.sfx.airdrop();
+  }
+
+  updateAirdrops(dt) {
+    if (!this.airdrops || !this.airdrops.length) return;
+    for (let i = this.airdrops.length - 1; i >= 0; i--) {
+      const a = this.airdrops[i];
+      a.age += dt;
+      // Parachute drag: gravity pulls, drag clamps terminal velocity at -5 m/s
+      a.vy -= 7 * dt;
+      if (a.vy < -5) a.vy = -5;
+      a.y += a.vy * dt;
+      // Visual feedback — beacon/ring pulse so you can see incoming drop
+      const pulse = 0.55 + 0.30 * Math.sin(a.age * 6);
+      a.ring.material.opacity = pulse;
+      a.beacon.material.opacity = 0.18 + 0.12 * Math.sin(a.age * 4);
+      // Gentle parachute sway
+      a.crateGroup.rotation.z = Math.sin(a.age * 1.6) * 0.10;
+      a.crateGroup.rotation.x = Math.sin(a.age * 1.3) * 0.06;
+
+      if (a.y <= a.targetY) {
+        // Touchdown — replace visuals with the actual loot pickup
+        const pos = a.targetPos.clone();
+        pos.y = 1.0;
+        const pk = new Pickup(this, 'loot', pos, { tier: 'rare', ephemeral: true });
+        this.pickups.push(pk);
+        this._disposeAirdropVisuals(a);
+        this.airdrops.splice(i, 1);
+        // Landing thump + small dust burst
+        if (this.sfx?.grenadeBoom) this.sfx.grenadeBoom(0.55, 0.55);
+        this.spawnExplosion(pos.clone(), 0.8, 0xffd24a);
+        continue;
+      }
+      a.crateGroup.position.y = a.y;
+    }
+  }
+
+  // Emergency ammo — one per life. Drops a static ammo crate ~5m in front of
+  // the player so they have something to grab right away when their reserve
+  // ran dry. Crate vanishes after pickup (ephemeral) so it doesn't litter the
+  // map across rounds.
+  spawnEmergencyAmmoCrate(player) {
+    const facing = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    const pos = player.position.clone().addScaledVector(facing, 5);
+    pos.y = Math.max(pos.y - 0.4, 0.5);
+    const pk = new Pickup(this, 'ammo', pos, { ephemeral: true });
+    this.pickups.push(pk);
+    if (this.hud && this.hud.addPickupMessage) {
+      this.hud.addPickupMessage('AMMO CRATE INCOMING — grab it');
+    }
+    if (this.sfx && this.sfx.airdrop) this.sfx.airdrop();
+  }
+
+  _disposeAirdropVisuals(a) {
+    this.scene.remove(a.crateGroup);
+    this.scene.remove(a.beacon);
+    this.scene.remove(a.ring);
+    a.crateGroup.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    a.beacon.geometry.dispose(); a.beacon.material.dispose();
+    a.ring.geometry.dispose(); a.ring.material.dispose();
   }
 
   taterStorm(player) {
@@ -1310,6 +1457,11 @@ export class Game {
       }
     }
     this.pickups = this.pickups.filter((pk) => !pk._disposed);
+    // Any airdrops mid-flight when the match resets get cleaned up too
+    if (this.airdrops) {
+      for (const a of this.airdrops) this._disposeAirdropVisuals(a);
+      this.airdrops = [];
+    }
     this.matchOver = false;
     this.teamKills = { mash: 0, russet: 0 };
     this.deadBotRoster = [];
