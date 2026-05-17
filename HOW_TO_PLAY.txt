@@ -38,7 +38,26 @@ OPTION 2 — MacBook
 
 
 ==========================================
-OPTION 3 — Share online (anyone, anywhere)
+OPTION 3 — Get the latest version from GitHub
+==========================================
+The project lives at:
+    https://github.com/i-am-louis-lu/Spud-Shockers
+
+FIRST TIME (downloads the whole project):
+    git clone https://github.com/i-am-louis-lu/Spud-Shockers.git
+
+EVERY TIME AFTER (gets just the changes):
+    cd Spud-Shockers
+    git pull
+
+If you don't have git installed yet:
+    Windows:  https://git-scm.com/download/win
+    Mac:      open Terminal and type `git --version` — macOS will offer to
+              install the developer tools for you the first time.
+
+
+==========================================
+OPTION 4 — Share online (anyone, anywhere)
 ==========================================
 This is the easiest if you want a friend to play without copying files.
 
