@@ -2,12 +2,6 @@ import { Game } from './game.js';
 import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { Multiplayer } from './multiplayer.js';
 import { Auth, randomGuestName } from './auth.js';
-import { preloadCharacter } from './character.js';
-
-// Kick off Mixamo character load immediately; bots check isCharacterReady()
-// before spawning so the first wave gets the real model. If load fails for
-// any reason they silently fall back to the original potato mesh.
-preloadCharacter().catch((err) => console.warn('character preload failed', err));
 
 // Restore account state before reading any saved progress — for a returning
 // logged-in user this copies their account snapshot into the live keys; for
