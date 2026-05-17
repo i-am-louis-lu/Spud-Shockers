@@ -681,11 +681,14 @@ export class Player {
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
       const val = this._devState[key];
+      // Note: number input uses step="any" so the user can type ANY decimal
+      // (e.g. 0.0073 even when the slider's step is 0.005). Slider keeps
+      // its configured step for drag granularity.
       row.innerHTML = `
         <label style="display:flex;align-items:center;gap:6px">
           <span style="display:inline-block;width:78px">${cfg.label}</span>
           <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-key="${key}" data-role="slider" style="flex:1">
-          <input type="number" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${(+val).toFixed(4)}" data-key="${key}" data-role="number" style="width:74px;background:#000;color:#5effb8;border:1px solid #5effb8;font-family:monospace;font-size:11px;padding:1px 4px">
+          <input type="number" step="any" value="${(+val).toFixed(4)}" data-key="${key}" data-role="number" style="width:74px;background:#000;color:#5effb8;border:1px solid #5effb8;font-family:monospace;font-size:11px;padding:1px 4px">
         </label>
       `;
     }
@@ -694,14 +697,26 @@ export class Player {
       if (tgt.tagName !== 'INPUT') return;
       const key = tgt.dataset.key;
       if (!key) return;
-      const v = parseFloat(tgt.value);
+      // Skip values that aren't complete numbers yet — "" (just cleared),
+      // "-" (typing negative), "0." (mid-decimal), ".5" (no leading 0).
+      // Without this guard the gun would teleport every keystroke.
+      const raw = tgt.value;
+      if (raw === '' || raw === '-' || raw === '.' || raw.endsWith('.')) return;
+      const v = parseFloat(raw);
       if (isNaN(v)) return;
       this._devState[key] = v;
       // Keep the slider and the number input synced — whichever one was
-      // touched, mirror the value to the other.
-      panel.querySelectorAll(`input[data-key="${key}"]`).forEach((other) => {
+      // touched, mirror the value to the other. Only mirror to the slider
+      // (which snaps to its step) — don't overwrite the number input
+      // because that would re-format what the user is currently typing.
+      panel.querySelectorAll(`input[data-key="${key}"][data-role="slider"]`).forEach((other) => {
         if (other !== tgt) other.value = v;
       });
+      // Also mirror number→slider AND slider→number-only-if-source-was-slider.
+      if (tgt.dataset.role === 'slider') {
+        const num = panel.querySelector(`input[data-key="${key}"][data-role="number"]`);
+        if (num) num.value = v;
+      }
       this._applyDevState();
     });
     panel.querySelector('#dev-copy').addEventListener('click', () => {
