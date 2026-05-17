@@ -178,14 +178,6 @@ export class Arena {
     // Multi-tier climbable mega-hills — high-ground sniping perches at ~6m
     this.buildMegaHill( 78,  70);
     this.buildMegaHill(-78, -70);
-
-    // Sliding ramps — eight low steps each, so the player can rip down them
-    // with a slope-boosted slide. Placed to invite engagements with the
-    // mega-hills and catwalks.
-    this.buildRamp(-50, -10, 14, 4.5, 4.0, '+x', 8, C.wood);   // West approach climb (low → catwalk-ish level)
-    this.buildRamp( 36,   2, 14, 4.5, 4.0, '-x', 8, C.wood);   // East descending ramp
-    this.buildRamp(-12,  42, 12, 5.0, 3.6, '-z', 8, C.stone);  // North slope down toward mid
-    this.buildRamp(  0, -54, 12, 5.0, 3.6, '+z', 8, C.stone);  // South slope up
     // High-ground crossings — four solid raised catwalks split across each
     // mid-field band so the central spawn corridor stays clear at x=0.
     this.buildCatwalk(18,  18, 18);   // N-east bridge
@@ -231,27 +223,6 @@ export class Arena {
   buildLowMound(cx, cz, r) {
     const h = STEP_H * 2;
     this.addBox(cx - r, 0, cz - r, r * 2, h, r * 2, C.grassMid);
-  }
-
-  // Multi-step ramp — visually a staircase, mechanically a series of
-  // ground-resting solid boxes whose tops rise step by step. Auto-step
-  // climbs them smoothly going up; sliding down builds momentum thanks
-  // to player.js slope-aware slide physics. Use an axis-aligned `dir`
-  // (`'+x'`, `'-x'`, `'+z'`, `'-z'`) — the ramp ascends along that axis.
-  buildRamp(x, z, length, width, totalHeight, dir = '+z', steps = 8, color = C.wood) {
-    const stepLen = length / steps;
-    const stepH = totalHeight / steps;
-    for (let i = 0; i < steps; i++) {
-      // tier (i = 0 at the low end, steps-1 at the high end)
-      const tier = i + 1;
-      const h = stepH * tier;
-      let sx = x, sz = z, sw = width, sd = width;
-      if (dir === '+z') { sz = z + i * stepLen; sw = width;   sd = stepLen; }
-      else if (dir === '-z') { sz = z + length - (i + 1) * stepLen; sw = width;   sd = stepLen; }
-      else if (dir === '+x') { sx = x + i * stepLen; sw = stepLen; sd = width; }
-      else if (dir === '-x') { sx = x + length - (i + 1) * stepLen; sw = stepLen; sd = width; }
-      this.addBox(sx, 0, sz, sw, h, sd, color);
-    }
   }
 
   // --- terrain ---

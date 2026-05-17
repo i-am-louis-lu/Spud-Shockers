@@ -3,6 +3,14 @@ import { WEAPONS, WEAPON_ORDER } from './weapons.js';
 import { Multiplayer } from './multiplayer.js';
 import { Auth, randomGuestName } from './auth.js';
 
+// Dynamic-import character.js so any failure inside it (a missing GLB,
+// a broken three.js addon URL, an unhandled exception) CANNOT break the
+// start screen — the catch swallows it and the game runs with the
+// procedural gun viewmodel just like the rollback build.
+import('./character.js')
+  .then((mod) => mod.preloadCharacter())
+  .catch((err) => console.warn('character system disabled', err));
+
 // Restore account state before reading any saved progress — for a returning
 // logged-in user this copies their account snapshot into the live keys; for
 // a returning guest it wipes; for an anonymous (never-signed-up) user it
