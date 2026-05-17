@@ -1785,19 +1785,25 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
           this._setFpsNeutralPose(this.currentWeapon);
         }
       }
-      // Pistol-Walk plays only while the player is actually moving — freeze
-      // on frame 0 when standing still so the hands don't keep swaying.
+      // Pistol-Walk — drive the animation time directly from bobPhase so the
+      // arms and the gun viewmodel bob up/down on the same beat. bobPhase
+      // advances only when the player is moving, so the arms naturally
+      // freeze when standing still without any extra check.
       if (
         !this._fpsArmsReloadActive &&
         !this._fpsArmsStabActive &&
         this.currentWeapon === 'spudgun' &&
         this.fpsArmsActions.pistolWalk
       ) {
-        const moveSpd = Math.hypot(this.velocity.x, this.velocity.z);
-        // 1× speed when running, slow when walking, paused when still
-        this.fpsArmsActions.pistolWalk.timeScale = moveSpd > 0.4
-          ? Math.min(1.6, moveSpd / 5)
-          : 0;
+        const act = this.fpsArmsActions.pistolWalk;
+        const clip = act.getClip();
+        if (clip) {
+          // One full bob cycle (2π) maps to one full walk-clip cycle.
+          // Wrap with modulo so the time stays in [0, clip.duration).
+          const phase = ((this.bobPhase || 0) / (Math.PI * 2)) % 1;
+          act.time = ((phase + 1) % 1) * clip.duration;
+          act.timeScale = 0;  // we set act.time manually each frame
+        }
       }
       if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);
     }
