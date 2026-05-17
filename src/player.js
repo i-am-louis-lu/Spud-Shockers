@@ -254,6 +254,15 @@ const FPS_OFFSETS = {
     gunRotY: 1.4,
     gunScale: 0.515,
   },
+  // Spudling Gun (heavy MG) — values measured 2026-05-17 by louis.
+  spudling: {
+    armsX: 0.340, armsY: -1.758, armsZ: -0.099,
+    armsRotY: 3.485,
+    armsScale: 0.011,
+    gunX: -0.200, gunY: 0.080, gunZ: 0.000,
+    gunRotY: 0.0,
+    gunScale: 0.515,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
