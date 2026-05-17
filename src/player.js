@@ -219,6 +219,19 @@ const REGEN_DELAY = 4.0;
 const REGEN_RATE = 1; // hp per second when out of combat (slow drip)
 const SPAWN_INVULN = 2.5;
 
+// Per-weapon FPS arms + gun offsets, dialed in via the F9 dev panel and
+// pasted here. If a weapon isn't in this map we fall back to whatever the
+// auto-align init computed (decent generic "hand on gun" pose).
+const FPS_OFFSETS = {
+  // Boomstick (sniper) — values measured 2026-05-17 by louis.
+  boomstick: {
+    armsX: 0.311, armsY: -1.854, armsZ: -0.236,
+    armsRotY: Math.PI,
+    armsScale: 0.011,
+    gunX: -0.150, gunY: -0.009, gunZ: 0.000,
+  },
+};
+
 export class Player {
   constructor(game) {
     this.game = game;
@@ -539,6 +552,18 @@ export class Player {
           this._devState.armsScale = bundle.mesh.scale.x;
           this._syncDevSliders();
         }
+        // Save the auto-aligned values as the fallback for any weapon that
+        // doesn't have explicit FPS_OFFSETS yet.
+        this._fpsArmsBaseline = {
+          armsX: bundle.mesh.position.x,
+          armsY: bundle.mesh.position.y,
+          armsZ: bundle.mesh.position.z,
+          armsRotY: bundle.mesh.rotation.y,
+          armsScale: bundle.mesh.scale.x,
+          gunX: 0, gunY: 0, gunZ: 0,
+        };
+        // Apply offsets for the currently-equipped weapon now that arms exist.
+        this._applyFpsOffsetsForWeapon(this.currentWeapon);
         this.fpsArms = bundle.mesh;
         this.fpsArmsMixer = bundle.mixer;
         this.fpsArmsActions = bundle.actions;
@@ -676,6 +701,17 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
         if (this._devMode && document.pointerLockElement) document.exitPointerLock();
       }
     });
+  }
+
+  // Switches the FPS arms + gun offset to whatever's configured for the
+  // given weapon. Falls back to the auto-aligned baseline if no entry.
+  _applyFpsOffsetsForWeapon(weaponName) {
+    if (!this.fpsArms || !this._devState) return;
+    const o = FPS_OFFSETS[weaponName] || this._fpsArmsBaseline;
+    if (!o) return;
+    Object.assign(this._devState, o);
+    this._syncDevSliders();
+    this._applyDevState();
   }
 
   _applyDevState() {
@@ -974,6 +1010,9 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
       this.gunMesh.material.color.setHex(WEAPONS[name].viewmodelColor);
     }
     this._swapGunModel(name);
+    // Per-weapon FPS arms + gun position. No-op if arms haven't loaded yet
+    // (init pass calls this once arms are ready).
+    this._applyFpsOffsetsForWeapon(name);
   }
 
   // Kick off the muzzle-flash / smoke / point-light burst. Called from every
