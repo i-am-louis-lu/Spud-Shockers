@@ -676,7 +676,7 @@ export class Player {
       gunY:      { label: 'Gun  Y off',min: -0.02, max: 0.02, step: 0.0001 },
       gunZ:      { label: 'Gun  Z off',min: -0.02, max: 0.02, step: 0.0001 },
       gunRotY:   { label: 'Gun  RotY',  min: -0.8,  max: 0.8,  step: 0.005  },
-      gunScale:  { label: 'Gun  Scale', min: 0.3,   max: 3.0,  step: 0.01   },
+      gunScale:  { label: 'Gun  Scale', min: 0.3,   max: 3.0,  step: 0.005  },
     };
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
@@ -907,6 +907,12 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
 
     document.addEventListener('keydown', (e) => {
       if (this.dead) return;
+      // If the user is typing in any text/number input (chat, F9 dev panel,
+      // sign-in form, etc.), let the input have the keystroke and don't
+      // treat it as a game hotkey. This stops "2" or "3" typed in the F9
+      // gun-offset boxes from swapping weapons out from under you.
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
       // Don't intercept keys until the game is actually running — start screen
       // still has its own Enter handler for the START button.
       if (!this.game.running && !this.chatOpen) return;
@@ -1718,6 +1724,20 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
           // hidden for knife).
           this._setFpsNeutralPose(this.currentWeapon);
         }
+      }
+      // Pistol-Walk plays only while the player is actually moving — freeze
+      // on frame 0 when standing still so the hands don't keep swaying.
+      if (
+        !this._fpsArmsReloadActive &&
+        !this._fpsArmsStabActive &&
+        this.currentWeapon === 'spudgun' &&
+        this.fpsArmsActions.pistolWalk
+      ) {
+        const moveSpd = Math.hypot(this.velocity.x, this.velocity.z);
+        // 1× speed when running, slow when walking, paused when still
+        this.fpsArmsActions.pistolWalk.timeScale = moveSpd > 0.4
+          ? Math.min(1.6, moveSpd / 5)
+          : 0;
       }
       if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);
     }
