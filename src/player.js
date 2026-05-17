@@ -263,6 +263,16 @@ const FPS_OFFSETS = {
     gunRotY: 0.0,
     gunScale: 0.515,
   },
+  // Masher (double-barrel shotgun) — values measured 2026-05-17 by louis.
+  masher: {
+    armsX: 0.326, armsY: -1.730, armsZ: -0.055,
+    armsRotY: 3.33,
+    armsScale: 0.011,
+    gunX: -0.100, gunY: -0.110, gunZ: -0.100,
+    gunRotX: 0.095,
+    gunRotY: 0.055,
+    gunScale: 0.75,
+  },
 };
 
 // Per-weapon "neutral" FPS arms animation. Defaults to 'reloading' clip
