@@ -1,0 +1,16 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Older nested snapshot of the project
+/spud-shockers/
+
+# Node (if you ever run the server.js with deps)
+node_modules/
+npm-debug.log*
+
+# Logs
+*.log

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spud Shockers</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/loaders/GLTFLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+      "three/addons/loaders/DRACOLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/DRACOLoader.js",
+      "three/addons/utils/SkeletonUtils.js": "https://unpkg.com/three@0.160.0/examples/jsm/utils/SkeletonUtils.js",
+      "three/addons/loaders/EXRLoader.js": "https://unpkg.com/three@0.160.0/examples/jsm/loaders/EXRLoader.js",
+      "trystero/torrent": "https://esm.sh/trystero@0.21.4/torrent"
+    }
+  }
+  </script>
+  <!--
+    Trystero (torrent strategy) for browser-to-browser multiplayer. Uses
+    BitTorrent tracker WebSockets for signaling — much more reliable than
+    PeerJS's single public signaling server, which kept hanging "connecting…"
+    indefinitely even after STUN was correctly configured.
+  -->
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="hud">
+      <div id="scope-overlay"></div>
+      <div id="crosshair"></div>
+      <div id="reload-bar"><div id="reload-fill"></div></div>
+      <div id="health-wrap">
+        <div id="health-label">HP</div>
+        <div id="health-bar"><div id="health-fill"></div></div>
+        <div id="health-text">100</div>
+      </div>
+      <div id="weapon-info">
+        <div id="weapon-name">Spudgun</div>
+        <div id="ammo">12 / 60</div>
+        <div id="weapon-list"></div>
+      </div>
+      <div id="kill-feed"></div>
+      <div id="top-stats">
+        <div id="kills-display">K 0/30</div>
+        <div id="coin-display">0¢</div>
+        <div id="xp-display">+0 XP</div>
+        <div id="streak-chip"></div>
+        <button id="chat-btn-hud" type="button">CHAT [Y]</button>
+        <button id="shop-btn-hud" type="button">SHOP [B]</button>
+        <button id="dad-btn-hud" type="button">+ DAD [F8]</button>
+        <button id="mp-btn-hud" type="button">PLAY DAD</button>
+      </div>
+      <div id="team-score">
+        <div class="team-score-row team-mash"><span class="ts-label">MASH</span><span class="ts-num" id="ts-mash">0</span></div>
+        <div class="team-score-sep"></div>
+        <div class="team-score-row team-russet"><span class="ts-label">RUSSET</span><span class="ts-num" id="ts-russet">0</span></div>
+        <div class="team-score-goal" id="ts-goal">to 30</div>
+      </div>
+      <div id="leaderboard"></div>
+      <div id="buff-bar"></div>
+      <div id="chat-log"></div>
+      <div id="nametag-layer"></div>
+      <div id="lockon-target"><div id="lockon-corners"><i></i><b></b></div><div id="lockon-info"></div></div>
+      <div id="momentum-chip"></div>
+      <div id="combo-meter"></div>
+      <div id="dash-chip" class="ready">Q DASH</div>
+      <div id="slide-chip" class="ready">C SLIDE</div>
+      <div id="chat-input-wrap">
+        <span id="chat-input-prefix">[ALL]</span>
+        <input id="chat-input" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Say something to everyone…">
+      </div>
+      <div id="hint">1 primary · 2 spudgun · 3 knife · RMB zoom · R reload · T special · Q dash · C slide · Space jump · P sentry · F lock · Y chat · B shop · M mute · F2 screenshot · F8 add DAD · ESC release</div>
+      <div id="dad-help" style="display:none">DAD: ↑↓ walk · ←→ turn · / shoot · . jump · , reload (auto-aim on)</div>
+      <div id="split-divider" style="display:none"></div>
+      <div id="music-widget">
+        <button id="music-mute" type="button" title="Mute music (M)">♪</button>
+        <input id="music-vol" type="range" min="0" max="1" step="0.01" value="0.45" title="Music volume">
+        <span id="music-track"></span>
+      </div>
+    </div>
+
+    <div id="start-screen">
+      <h1>SPUD SHOCKERS</h1>
+      <p class="tagline">Team battle · You're on <span class="team-mash">TEAM MASH</span> vs <span class="team-russet">TEAM RUSSET</span> · First team to 30 kills wins</p>
+      <div id="account-panel">
+        <div id="account-status">
+          <span id="account-status-text">Not signed in — progress won't be saved</span>
+          <span id="account-status-coins"></span>
+        </div>
+        <div id="account-actions">
+          <button id="acct-signin-btn" type="button">SIGN IN</button>
+          <button id="acct-signup-btn" type="button">SIGN UP</button>
+          <button id="acct-guest-btn" type="button">PLAY AS GUEST</button>
+          <button id="acct-export-btn" type="button" style="display:none" title="Copy your account so you can sign in on another site (e.g. Netlify)">EXPORT</button>
+          <button id="acct-import-btn" type="button" title="Paste an account code from another site to recreate your account here">IMPORT</button>
+          <button id="acct-logout-btn" type="button" style="display:none">LOG OUT</button>
+        </div>
+        <div id="acct-form" style="display:none">
+          <input id="acct-username" type="text" maxlength="14" autocomplete="username" placeholder="username" spellcheck="false">
+          <input id="acct-password" type="password" maxlength="40" autocomplete="current-password" placeholder="password">
+          <button id="acct-form-submit" type="button">GO</button>
+          <button id="acct-form-cancel" type="button">×</button>
+          <div id="acct-form-status" class="acct-status-line"></div>
+        </div>
+      </div>
+      <div id="player-progress">
+        <span class="lvl-tag">LVL <b id="level-num">1</b></span>
+        <div class="xp-bar"><div class="xp-fill"></div></div>
+        <span class="xp-tag"><span id="xp-cur">0</span> / <span id="xp-need">100</span> XP</span>
+      </div>
+      <div id="win-streak-display"></div>
+      <div id="career-totals"></div>
+      <div class="picker-label" style="margin-top:6px">DAILY CHALLENGES</div>
+      <div id="daily-challenges"></div>
+      <div class="name-row">
+        <label for="player-name-input">NAME</label>
+        <input id="player-name-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="SpudLord">
+      </div>
+      <div class="picker-label">PICK YOUR WEAPON</div>
+      <div id="start-weapon-picker" class="weapon-picker"></div>
+      <div class="controls">
+        <div><b>WASD</b> move &nbsp; <b>Mouse</b> look &nbsp; <b>LMB</b> shoot &nbsp; <b>RMB</b> aim/zoom</div>
+        <div><b>1</b> primary &nbsp; <b>2</b> spudgun &nbsp; <b>3</b> knife &nbsp; <b>R</b> reload &nbsp; <b>T</b> special &nbsp; <b>Q</b> dash &nbsp; <b>C</b> slide &nbsp; <b>P</b> sentry &nbsp; <b>B</b> shop &nbsp; <b>Space</b> jump &nbsp; <b>Shift</b> sprint &nbsp; <b>ESC</b> release</div>
+        <div style="margin-top:6px;opacity:0.8;font-size:11px">TIP: Slide-hop! Hit <b>Space</b> while sliding for a parkour-style boosted jump.</div>
+      </div>
+      <button id="start-btn" disabled>START MASHING</button>
+      <div id="mp-panel">
+        <div class="mp-title">PLAY WITH DAD ONLINE</div>
+        <div class="mp-mode-row" id="mp-mode-row-top">
+          <span class="mp-label" style="margin-right:8px">GAME MODE</span>
+          <button id="mp-mode-btn" type="button">TEAM · FIRST TO 30</button>
+        </div>
+        <div class="mp-hint" id="mp-mode-hint">1v1 removes all bots — first to 5 kills wins. Pick before hosting; mode auto-syncs to whoever joins.</div>
+        <div class="mp-buttons">
+          <button id="mp-host-btn" type="button">HOST GAME</button>
+          <button id="mp-join-btn" type="button">JOIN GAME</button>
+        </div>
+        <div id="mp-host-box" class="mp-box" style="display:none">
+          <div class="mp-label">YOUR CODE — share with dad</div>
+          <div id="mp-host-code">…</div>
+          <div class="mp-hint">waiting for dad to join…</div>
+        </div>
+        <div id="mp-join-box" class="mp-box" style="display:none">
+          <div class="mp-label">ENTER DAD'S CODE</div>
+          <input id="mp-join-input" type="text" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD">
+          <button id="mp-join-confirm" type="button">CONNECT</button>
+          <div class="mp-hint" id="mp-join-status"></div>
+        </div>
+        <div id="mp-connected-box" class="mp-box" style="display:none">
+          <div class="mp-label">CONNECTED · YOU + <span id="mp-peer-name">DAD</span></div>
+          <div class="mp-hint">click START MASHING to play together — mode is locked above</div>
+        </div>
+      </div>
+      <div id="build-tag" style="margin-top:14px;font-size:11px;opacity:0.55;letter-spacing:1px;">BUILD 2026-05-16bp · TOSSOR reset to identity · bbox logging enabled</div>
+      <div id="credits" style="margin-top:6px;font-size:10px;opacity:0.45;letter-spacing:0.5px;line-height:1.4;">
+        Fryer model: "Scar-H" by Kristian M via Poly Pizza — <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" style="color:inherit;">CC BY 4.0</a>
+      </div>
+    </div>
+
+    <div id="death-screen" style="display:none">
+      <h1>YOU GOT MASHED</h1>
+      <div id="final-score"></div>
+      <div class="picker-label">SWITCH WEAPON OR REFIGHT</div>
+      <div id="death-weapon-picker" class="weapon-picker"></div>
+      <button id="respawn-btn">REFIGHT</button>
+    </div>
+
+    <div id="match-end-screen" style="display:none">
+      <h1 id="match-end-title">YOU WIN</h1>
+      <div id="match-end-stats"></div>
+      <div id="match-end-awards" style="display:none"></div>
+      <div id="match-end-board"></div>
+      <button id="new-match-btn">NEW MATCH</button>
+    </div>
+
+    <div id="mp-ingame-modal">
+      <div class="shop-card mp-ingame-card">
+        <div class="shop-header">
+          <h2>PLAY WITH DAD</h2>
+          <button id="mp-ingame-close" type="button">×</button>
+        </div>
+        <div id="mp-ingame-body">
+          <div class="mp-mode-row" style="justify-content:center;margin:6px 0 4px">
+            <span class="mp-label" style="margin-right:8px">MODE</span>
+            <button id="mp-ingame-mode-btn" type="button">TEAM · FIRST TO 30</button>
+          </div>
+          <div class="mp-hint" style="text-align:center">1v1 wipes all bots — first to 5 kills wins. Match resets when dad joins.</div>
+          <div class="mp-buttons" style="justify-content:center;margin-top:10px">
+            <button id="mp-ingame-host-btn" type="button">HOST GAME</button>
+            <button id="mp-ingame-join-btn" type="button">JOIN GAME</button>
+          </div>
+          <div id="mp-ingame-host-box" class="mp-box" style="display:none">
+            <div class="mp-label">YOUR CODE — share with dad</div>
+            <div id="mp-ingame-host-code">…</div>
+            <div class="mp-hint">waiting for dad to join…</div>
+          </div>
+          <div id="mp-ingame-join-box" class="mp-box" style="display:none">
+            <div class="mp-label">ENTER DAD'S CODE</div>
+            <input id="mp-ingame-join-input" type="text" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD">
+            <button id="mp-ingame-join-confirm" type="button">CONNECT</button>
+            <div class="mp-hint" id="mp-ingame-join-status"></div>
+          </div>
+          <div id="mp-ingame-connected-box" class="mp-box" style="display:none">
+            <div class="mp-label">CONNECTED — DAD JOINED THE BATTLE</div>
+            <div class="mp-hint">close this and keep mashing.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="shop-modal">
+      <div class="shop-card">
+        <div class="shop-header">
+          <h2>SPUD SHOP</h2>
+          <div class="shop-balance"><span id="shop-coins">0</span><span class="coin">¢</span></div>
+          <button id="shop-close" type="button">×</button>
+        </div>
+        <div id="shop-items"></div>
+        <div class="shop-footer">B or ESC to close · World pauses while shop is open</div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    // Cache-bust the entire module graph on every page load so edits show up
+    // immediately. Browsers cache ES modules aggressively even with no-store.
+    import('./src/main.js?v=' + Date.now());
+  </script>
+</body>
+</html>

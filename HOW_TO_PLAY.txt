@@ -1,0 +1,95 @@
+================================
+SPUD SHOCKERS — How To Play
+================================
+
+The game runs in your browser, but it needs a tiny local web server
+because it uses JavaScript modules. There are three ways to play it:
+
+
+==========================================
+OPTION 1 — Windows laptop
+==========================================
+1. Open the spud-shockers folder in File Explorer.
+2. Right-click serve.ps1 and choose "Run with PowerShell".
+   If Windows blocks it, open PowerShell from the folder (Shift+Right-click
+   inside the folder → "Open PowerShell window here") and run:
+       powershell -ExecutionPolicy Bypass -File serve.ps1
+3. Open http://localhost:8000/ in any browser (Chrome / Edge work best).
+4. Press Ctrl+C in the PowerShell window to stop the server.
+
+
+==========================================
+OPTION 2 — MacBook
+==========================================
+1. Open the spud-shockers folder in Finder.
+2. ONE-TIME SETUP (only the first time):
+   - Open Terminal (Cmd+Space → type "Terminal" → Enter).
+   - Drag the spud-shockers folder onto the Terminal window. It will paste
+     the folder path. Add `cd ` at the start so the line looks like:
+         cd /Users/you/Downloads/spud-shockers
+   - Press Enter.
+   - Then type:
+         chmod +x serve.command
+   - Press Enter. Done. Close Terminal.
+3. Back in Finder, double-click serve.command.
+   A Terminal window will open and start the server.
+4. Open http://localhost:8000/ in any browser (Chrome / Safari).
+5. To stop the server, press Ctrl+C in the Terminal window that opened.
+
+
+==========================================
+OPTION 3 — Share online (anyone, anywhere)
+==========================================
+This is the easiest if you want a friend to play without copying files.
+
+1. On your computer, zip the spud-shockers folder.
+2. Go to https://app.netlify.com/drop in any browser (no signup needed).
+3. Drag the zip file onto the page.
+4. Netlify gives you a public URL like https://something-something.netlify.app
+5. Share that URL with anyone. They just click it and play. Done.
+
+
+==========================================
+PLAY ONLINE WITH DAD (TWO COMPUTERS, REAL-TIME)
+==========================================
+Both you and dad open the SAME URL (the Netlify one from Option 3 works
+great). The game has a built-in lobby that connects you peer-to-peer over
+the internet — no account, no server.
+
+1. You both load the same Spud Shockers page.
+2. On the start screen, find the "PLAY WITH DAD ONLINE" panel.
+3. ONE of you clicks "HOST GAME". A 4-letter code appears (e.g. "GRTM").
+4. The OTHER one clicks "JOIN GAME", types the code, presses CONNECT.
+5. Once connected, the panel turns green. Both click START MASHING.
+6. The host plays TEAM MASH (red). The joiner plays TEAM RUSSET (blue) —
+   so dad is the leader of the opposing team. Both still have AI bots on
+   their own side, and you can shoot each other across the battlefield.
+7. The "king potato" (gold crown for you, pink crown for dad) marks the
+   real human leaders.
+
+If the connection won't open: both sides need stable internet. Some
+strict workplace firewalls block WebRTC — try a home connection or
+phone hotspot. Refreshing the page resets the lobby.
+
+
+==========================================
+CONTROLS
+==========================================
+WASD          move
+Mouse         look
+Left click    shoot
+Right click   aim / zoom
+Shift         sprint
+Space         jump
+Q             dash (3s cooldown)
+C             slide (sprint + C; tap Space mid-slide for slide-hop!)
+R             reload
+T             special move (per-weapon)
+P             sentry mode (for Spudling)
+F             soft target-lock
+1 / 2 / 3     swap weapons
+B             shop  ·  Y  chat
+F8            add your dad as a second player on YOUR SAME computer
+              (split-screen). For online play see "PLAY ONLINE WITH DAD"
+              above instead.
+ESC           release mouse
