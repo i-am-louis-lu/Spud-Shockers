@@ -574,7 +574,7 @@ export class Player {
       'background:rgba(0,0,0,0.85)', 'color:#5effb8',
       'font:11px/1.5 monospace', 'padding:10px 12px', 'border-radius:8px',
       'display:none', 'border:1px solid #5effb8',
-      'min-width:260px',
+      'min-width:380px',
     ].join(';');
     panel.innerHTML = `
       <div style="font-weight:bold;margin-bottom:6px;border-bottom:1px solid #5effb8;padding-bottom:4px">
@@ -599,23 +599,23 @@ export class Player {
     this._devPanel = panel;
 
     const sliderRows = {
-      armsX:     { label: 'Arms X',    min: -1.5, max: 1.5,  step: 0.005 },
-      armsY:     { label: 'Arms Y',    min: -3,   max: 1,    step: 0.005 },
-      armsZ:     { label: 'Arms Z',    min: -1.5, max: 1,    step: 0.005 },
-      armsRotY:  { label: 'Arms RotY', min: 0,    max: 6.30, step: 0.01  },
-      armsScale: { label: 'Arms Scale',min: 0.001,max: 0.04, step: 0.0005 },
-      gunX:      { label: 'Gun  X off',min: -0.30, max: 0.30, step: 0.001 },
-      gunY:      { label: 'Gun  Y off',min: -0.30, max: 0.30, step: 0.001 },
-      gunZ:      { label: 'Gun  Z off',min: -0.30, max: 0.30, step: 0.001 },
+      armsX:     { label: 'Arms X',    min: -0.6, max: 0.6,  step: 0.001 },
+      armsY:     { label: 'Arms Y',    min: -2.4, max: 0,    step: 0.002 },
+      armsZ:     { label: 'Arms Z',    min: -0.8, max: 0.4,  step: 0.001 },
+      armsRotY:  { label: 'Arms RotY', min: 0,    max: 6.30, step: 0.005 },
+      armsScale: { label: 'Arms Scale',min: 0.001,max: 0.025,step: 0.0002 },
+      gunX:      { label: 'Gun  X off',min: -0.15, max: 0.15, step: 0.0005 },
+      gunY:      { label: 'Gun  Y off',min: -0.15, max: 0.15, step: 0.0005 },
+      gunZ:      { label: 'Gun  Z off',min: -0.15, max: 0.15, step: 0.0005 },
     };
     for (const [key, cfg] of Object.entries(sliderRows)) {
       const row = panel.querySelector(`[data-row="${key}"]`);
       const val = this._devState[key];
       row.innerHTML = `
         <label style="display:flex;align-items:center;gap:6px">
-          <span style="display:inline-block;width:80px">${cfg.label}</span>
-          <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-key="${key}" style="flex:1">
-          <span class="dev-val" data-key="${key}" style="display:inline-block;width:54px;text-align:right">${(+val).toFixed(3)}</span>
+          <span style="display:inline-block;width:78px">${cfg.label}</span>
+          <input type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-key="${key}" data-role="slider" style="flex:1">
+          <input type="number" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${(+val).toFixed(4)}" data-key="${key}" data-role="number" style="width:74px;background:#000;color:#5effb8;border:1px solid #5effb8;font-family:monospace;font-size:11px;padding:1px 4px">
         </label>
       `;
     }
@@ -625,9 +625,13 @@ export class Player {
       const key = tgt.dataset.key;
       if (!key) return;
       const v = parseFloat(tgt.value);
+      if (isNaN(v)) return;
       this._devState[key] = v;
-      const label = panel.querySelector(`.dev-val[data-key="${key}"]`);
-      if (label) label.textContent = v.toFixed(3);
+      // Keep the slider and the number input synced — whichever one was
+      // touched, mirror the value to the other.
+      panel.querySelectorAll(`input[data-key="${key}"]`).forEach((other) => {
+        if (other !== tgt) other.value = v;
+      });
       this._applyDevState();
     });
     panel.querySelector('#dev-copy').addEventListener('click', () => {
@@ -651,12 +655,7 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
         armsRotY: Math.PI, armsScale: 0.011,
         gunX: 0, gunY: 0, gunZ: 0,
       });
-      panel.querySelectorAll('input[data-key]').forEach((inp) => {
-        const k = inp.dataset.key;
-        inp.value = this._devState[k];
-        const label = panel.querySelector(`.dev-val[data-key="${k}"]`);
-        if (label) label.textContent = (+this._devState[k]).toFixed(3);
-      });
+      this._syncDevSliders();
       this._applyDevState();
     });
 
@@ -683,18 +682,15 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
     this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
   }
 
-  // Reflect current _devState values back into the slider DOM so the UI
-  // stays consistent with anything that mutates _devState programmatically
-  // (e.g. the auto-align init pass setting the post-shift position).
+  // Reflect current _devState values back into both the slider and the
+  // number-input DOM nodes so the UI stays consistent with anything that
+  // mutates _devState programmatically (e.g. the auto-align init pass
+  // setting the post-shift position, or the RESET button).
   _syncDevSliders() {
     if (!this._devPanel) return;
     this._devPanel.querySelectorAll('input[data-key]').forEach((inp) => {
       const k = inp.dataset.key;
-      if (this._devState[k] != null) {
-        inp.value = this._devState[k];
-        const label = this._devPanel.querySelector(`.dev-val[data-key="${k}"]`);
-        if (label) label.textContent = (+this._devState[k]).toFixed(3);
-      }
+      if (this._devState[k] != null) inp.value = this._devState[k];
     });
   }
 
