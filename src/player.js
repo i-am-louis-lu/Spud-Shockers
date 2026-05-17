@@ -744,9 +744,14 @@ export class Player {
     }
   }
 
-  // First-person Mixamo arms — second clone parented to the FPS camera. Hide
-  // the head + lower body + non-arm spine bones so only the arms emerge into
-  // the camera frame. Idempotent + safe to call on every update.
+  // First-person Mixamo arms — second clone parented to the FPS camera.
+  // ALWAYS visible: arms grip the gun in a neutral pose (paused on the first
+  // frame of the Reloading clip, which has hands forward on the weapon).
+  // When the player reloads, we unpause that action and play it through to
+  // show the mag-swap, then snap back to frame 0 holding pose.
+  //
+  // Head + lower-body bones are scaled near zero so only the arms emerge
+  // into the camera frame. Idempotent — safe to call every frame.
   _tryInitFpsArms() {
     if (this.fpsArms || !isCharacterReady()) return;
     const bundle = makeCharacter({ tint: 0xd9a86b });
@@ -759,7 +764,7 @@ export class Player {
         const n = o.name || '';
         // Hide head/face, neck, hips, and all leg bones. Leave shoulders,
         // arms, forearms, hands, and fingers at full scale so the user
-        // actually sees realistic arms instead of a torso pancake.
+        // actually sees realistic arms gripping the gun.
         if (/Head|Neck|UpLeg|^.*Leg$|Foot|Toe|Hips$/.test(n)) {
           o.scale.setScalar(0.001);
         }
@@ -770,7 +775,19 @@ export class Player {
     this.fpsArmsMixer = bundle.mixer;
     this.fpsArmsActions = bundle.actions;
     this.fpsArmsPlay = bundle.play;
-    this.fpsArms.visible = false;  // only shown during reload
+    this.fpsArms.visible = true;
+
+    // Neutral grip = first frame of the Reloading clip (hands on weapon).
+    // We start it playing once, immediately pause via timeScale=0, then
+    // unpause / reseek when the actual reload kicks in.
+    const reloadAct = this.fpsArmsActions?.reloading;
+    if (reloadAct) {
+      reloadAct.setLoop(THREE.LoopOnce, 1);
+      reloadAct.clampWhenFinished = true;
+      reloadAct.reset();
+      reloadAct.play();
+      reloadAct.timeScale = 0;     // pause on frame 0
+    }
   }
 
   switchWeapon(name) {
@@ -1321,26 +1338,29 @@ export class Player {
 
     // FPS arms lazy-init in case character.js loaded after construction
     this._tryInitFpsArms();
-    // FPS arms reload visual — show the skinned arms (and hide the gun) for
-    // the duration of the reload. Driven off `this.reloading` edges so it
-    // self-cleans on weapon swaps / cancels / death (all of which flip
-    // reloading=false elsewhere).
-    if (this.fpsArmsPlay) {
-      if (this.reloading && !this._fpsArmsReloadActive) {
-        this._fpsArmsReloadActive = true;
-        this.fpsArms.visible = true;
-        if (this.gunHolder) this.gunHolder.visible = false;
-        if (this.gunMesh) this.gunMesh.visible = false;
-        // Time-stretch the reload clip to fit the configured reload duration
-        const targetSec = Math.max(0.2, this._reloadTotal || this.reloadTimer || 1);
-        const clip = this.fpsArmsActions.reloading?.getClip();
-        const ts = clip ? clip.duration / targetSec : 1;
-        this.fpsArmsPlay('reloading', { loop: false, timeScale: ts, fadeMs: 80 });
-      } else if (!this.reloading && this._fpsArmsReloadActive) {
-        this._fpsArmsReloadActive = false;
-        this.fpsArms.visible = false;
-        if (this.gunHolder) this.gunHolder.visible = true;
-        if (this.gunMesh) this.gunMesh.visible = true;
+    // FPS arms ALWAYS visible holding the gun. The Reloading action is left
+    // playing (LoopOnce + clampWhenFinished) with timeScale=0 outside reload
+    // — that pins frame 0, which is the natural "hands gripping the weapon"
+    // pose. When the player triggers a reload we re-seek to time=0 and set
+    // timeScale so the clip's full duration matches the weapon's reload
+    // time exactly. When reload ends, we snap back to time=0 paused.
+    if (this.fpsArmsActions) {
+      const reloadAct = this.fpsArmsActions.reloading;
+      if (reloadAct) {
+        if (this.reloading && !this._fpsArmsReloadActive) {
+          this._fpsArmsReloadActive = true;
+          const targetSec = Math.max(0.2, this._reloadTotal || this.reloadTimer || 1);
+          const clip = reloadAct.getClip();
+          reloadAct.reset();
+          reloadAct.timeScale = clip ? clip.duration / targetSec : 1;
+          reloadAct.play();
+        } else if (!this.reloading && this._fpsArmsReloadActive) {
+          this._fpsArmsReloadActive = false;
+          // Snap back to the neutral grip frame
+          reloadAct.reset();
+          reloadAct.timeScale = 0;
+          reloadAct.play();
+        }
       }
       if (this.fpsArmsMixer) this.fpsArmsMixer.update(dt);
     }

@@ -3,7 +3,6 @@ import { makePotato } from './potato.js';
 import { WEAPONS } from './weapons.js';
 import { TEAM_COLORS } from './arena.js';
 import { Pickup } from './pickup.js';
-import { makeCharacter, isCharacterReady } from './character.js';
 
 // Combat archetypes — drive weapon selection AND engagement behavior so each
 // bot fights in a distinct, recognizable way. Picked at spawn alongside chat
@@ -620,42 +619,25 @@ export class Bot {
     this.hotBarrelTimer = 0;
 
     const tint = this.weapon.viewmodelColor || 0xc47a3d;
-    // Mixamo skinned character if loaded, else fall back to the classic potato.
-    // Wrapped in a Group so existing rotation/positioning + child attachments
-    // (gun/hat/crown/healthbar) all keep working unchanged.
-    if (isCharacterReady()) {
-      const bundle = makeCharacter({ tint });
-      this.mesh = new THREE.Group();
-      bundle.mesh.position.y = -1.1;     // drop feet to where the old potato bottom was
-      this.mesh.add(bundle.mesh);
-      this.mixer = bundle.mixer;
-      this.charActions = bundle.actions;
-      this.charPlay = bundle.play;
-      this.usingMixamo = true;
-      // Default to walking on loop (we zero timeScale below for idle)
-      this.charPlay('walking', { loop: true, timeScale: 1 });
-    } else {
-      this.mesh = makePotato({ size: 1.5, color: tint });
-      this.usingMixamo = false;
-    }
+    this.mesh = makePotato({ size: 1.5, color: tint });
     this.mesh.position.copy(this.position);
     this.game.scene.add(this.mesh);
 
-    // weapon prop — sit higher on the Mixamo body so it reads as "in hand"
+    // weapon prop
     const gun = new THREE.Mesh(
       new THREE.BoxGeometry(0.15, 0.15, 0.5 + (this.weapon.projectileSize ?? 0.1) * 2),
       new THREE.MeshStandardMaterial({ color: this.weapon.viewmodelColor })
     );
-    gun.position.set(0.35, this.usingMixamo ? 0.25 : 0, 0.45);
+    gun.position.set(0.3, 0, 0.45);
     this.mesh.add(gun);
     this.gunProp = gun;
 
-    // team hat — perched above the character/potato head
+    // team hat
     const hat = new THREE.Mesh(
       new THREE.CylinderGeometry(0.4, 0.55, 0.25, 12),
       new THREE.MeshBasicMaterial({ color: TEAM_COLORS[team] })
     );
-    hat.position.y = this.usingMixamo ? 1.0 : 1.0;  // same for now; tune later
+    hat.position.y = 1.0;
     this.mesh.add(hat);
     this.teamHat = hat;
 
@@ -1750,42 +1732,18 @@ export class Bot {
     this.position.copy(newPos);
 
     this.mesh.position.copy(this.position);
-    // Idle bob only for the legacy potato — Mixamo's walking animation already
-    // has its own subtle vertical motion that looks weird when stacked.
-    if (this.onGround && !this.usingMixamo) {
+    if (this.onGround) {
       this.mesh.position.y += Math.sin(performance.now() * 0.005 + this.id) * 0.04;
     }
     if (this.bountyCrown && this.bountyCrown.visible) {
       this.bountyCrown.rotation.y += dt * 2.6;
     }
-    // Face the target if we have one, else face the way we're moving — keeps
-    // the Mixamo character from sliding sideways when patrolling without an
-    // engagement.
-    const moveSpd = Math.hypot(this.velocity.x, this.velocity.z);
     if (this.target) {
       this.mesh.rotation.y = Math.atan2(
         this.target.position.x - this.position.x,
         this.target.position.z - this.position.z
       );
-    } else if (moveSpd > 0.4) {
-      this.mesh.rotation.y = Math.atan2(this.velocity.x, this.velocity.z);
     }
-
-    // Animation state machine for Mixamo bodies. Priorities (high→low):
-    // reloading → airborne → moving (walk) → idle (frozen walk frame).
-    if (this.usingMixamo && this.charPlay) {
-      if (this.reloading) {
-        this.charPlay('reloading', { loop: false, timeScale: 1.0 });
-      } else if (!this.onGround) {
-        this.charPlay('jumping', { loop: false, timeScale: 1.0 });
-      } else if (moveSpd > 0.4) {
-        this.charPlay('walking', { loop: true, timeScale: Math.min(1.6, moveSpd / 4) });
-      } else {
-        // Idle = walking action with timeScale 0 (locks current pose)
-        this.charPlay('walking', { loop: true, timeScale: 0 });
-      }
-    }
-    if (this.mixer) this.mixer.update(dt);
 
     // health bar billboard
     const barPos = this.position.clone();
@@ -2304,30 +2262,10 @@ export class Bot {
       this.auraInner.material.dispose();
       this.auraInner = null;
     }
-    // Mixamo clones share their geometry / skeleton across all live bots, so
-    // disposing those buffers would break every other bot. Only safe targets
-    // are the per-instance materials we assigned in character.js. For legacy
-    // potato meshes, the original full-traverse dispose is fine.
-    if (this.usingMixamo) {
-      if (this.mixer) {
-        this.mixer.stopAllAction();
-        this.mixer = null;
-      }
-      this.mesh.traverse((o) => {
-        if (o.isMesh || o.isSkinnedMesh) {
-          if (o.material && o.material.dispose) o.material.dispose();
-        } else if (o.material && o.material.dispose) {
-          // attached gun/hat/crown — geometry IS per-instance, dispose both
-          if (o.geometry) o.geometry.dispose();
-          o.material.dispose();
-        }
-      });
-    } else {
-      this.mesh.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-        if (o.material) o.material.dispose();
-      });
-    }
+    this.mesh.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
     this.healthBarBg.geometry.dispose();
     this.healthBarBg.material.dispose();
     this.healthBarFill.geometry.dispose();
