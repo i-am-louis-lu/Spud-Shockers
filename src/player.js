@@ -465,6 +465,9 @@ export class Player {
     this._fpsArmsStabActive = false;
     this._fpsArmsStabTimer = 0;        // counts down during knife stab anim
     this._tryInitFpsArms();
+    // Dev positioning tool — F9 to toggle. Lets the user dial in arms + gun
+    // offsets in-game and log the final values to console.
+    this._setupDevPanel();
 
     this.setupInput();
   }
@@ -538,6 +541,109 @@ export class Player {
         this._fpsArmsBusy = false;
       }
     })();
+  }
+
+  // In-game positioning tool for the FPS arms and gun. Toggle with F9.
+  // Use the panel to dial in offsets that look right, press ; to log them,
+  // paste the values into _tryInitFpsArms / gunMesh defaults to bake them.
+  _setupDevPanel() {
+    if (this._devPanel) return;
+    const panel = document.createElement('div');
+    panel.id = 'fps-dev-panel';
+    panel.style.cssText = [
+      'position:fixed', 'top:10px', 'right:10px', 'z-index:9999',
+      'background:rgba(0,0,0,0.78)', 'color:#5effb8',
+      'font:11px/1.4 monospace', 'padding:10px 14px', 'border-radius:6px',
+      'pointer-events:none', 'display:none', 'white-space:pre',
+      'border:1px solid #5effb8',
+    ].join(';');
+    document.body.appendChild(panel);
+    this._devPanel = panel;
+    this._devMode = false;
+    this._devSelected = 'arms';        // 'arms' | 'gun'
+    this._gunDevOffset = new THREE.Vector3();
+    document.addEventListener('keydown', (e) => {
+      // Don't grab keystrokes when the user is typing in chat / sign-in /
+      // any text input — would otherwise eat letters as they type their name.
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+      if (this.chatOpen) return;
+      if (e.code === 'F9') {
+        e.preventDefault();
+        this._devMode = !this._devMode;
+        panel.style.display = this._devMode ? 'block' : 'none';
+        return;
+      }
+      if (!this._devMode) return;
+      // Q swaps between adjusting arms vs gun (Q is free since the dash
+      // mechanic was removed earlier).
+      if (e.code === 'KeyQ') {
+        e.preventDefault();
+        this._devSelected = this._devSelected === 'arms' ? 'gun' : 'arms';
+        return;
+      }
+      const step = e.shiftKey ? 0.005 : 0.025;
+      const isArms = this._devSelected === 'arms';
+      const target = isArms ? this.fpsArms : null;   // gun handled via offset
+      const offset = isArms ? null : this._gunDevOffset;
+      let dx = 0, dy = 0, dz = 0;
+      switch (e.code) {
+        case 'KeyJ': dx = -step; break;
+        case 'KeyL': dx =  step; break;
+        case 'KeyI': dy =  step; break;
+        case 'KeyK': dy = -step; break;
+        case 'KeyU': dz = -step; break;   // forward (away from camera in viewmodel-local)
+        case 'KeyO': dz =  step; break;   // backward
+        case 'Comma':
+          if (isArms && this.fpsArms) this.fpsArms.scale.multiplyScalar(0.95);
+          e.preventDefault();
+          return;
+        case 'Period':
+          if (isArms && this.fpsArms) this.fpsArms.scale.multiplyScalar(1.05);
+          e.preventDefault();
+          return;
+        case 'Semicolon':
+          // Spit values to console — paste into _tryInitFpsArms / gunMesh defaults
+          if (this.fpsArms) {
+            console.log('Arms position:', this.fpsArms.position.toArray().map(v => v.toFixed(3)));
+            console.log('Arms scale (top-level):', this.fpsArms.scale.x.toFixed(4));
+          }
+          console.log('Gun offset:', this._gunDevOffset.toArray().map(v => v.toFixed(3)));
+          e.preventDefault();
+          return;
+        default:
+          return;
+      }
+      e.preventDefault();
+      if (target) {
+        target.position.x += dx;
+        target.position.y += dy;
+        target.position.z += dz;
+      }
+      if (offset) {
+        offset.x += dx;
+        offset.y += dy;
+        offset.z += dz;
+      }
+    });
+  }
+
+  _updateDevPanel() {
+    if (!this._devMode || !this._devPanel) return;
+    const a = this.fpsArms ? this.fpsArms.position : { x: 0, y: 0, z: 0 };
+    const s = this.fpsArms ? this.fpsArms.scale.x : 1;
+    const g = this._gunDevOffset || { x: 0, y: 0, z: 0 };
+    const sel = this._devSelected.toUpperCase();
+    this._devPanel.textContent =
+      `[F9] DEV MODE — target: ${sel}    [Q] swap target\n` +
+      `Arms pos: ${a.x.toFixed(3)}, ${a.y.toFixed(3)}, ${a.z.toFixed(3)}\n` +
+      `Arms scale: ${s.toFixed(4)}\n` +
+      `Gun offset: ${g.x.toFixed(3)}, ${g.y.toFixed(3)}, ${g.z.toFixed(3)}\n` +
+      `\n` +
+      `IJKL = move XY,  UO = move Z\n` +
+      `Shift = fine step (5×slower)\n` +
+      `, / . = arms scale  ;  = print values\n` +
+      `F9 = exit dev mode`;
   }
 
   // Kick off the knife stab animation. Uses crossFadeFrom on the running
@@ -1512,9 +1618,22 @@ export class Player {
     this.viewmodel.position.set(vmX, vmY, vmZ);
     this.gunMesh.position.x = THREE.MathUtils.lerp(0.32, 0.0, this.adsAmount);
     this.gunMesh.position.y = THREE.MathUtils.lerp(-0.28, -0.18, this.adsAmount);
+    // Dev-mode gun offset — added on top of the existing per-frame writes so
+    // ADS/recoil keep working. Stays at zero unless the user nudges it via F9.
+    if (this._gunDevOffset) {
+      this.gunMesh.position.x += this._gunDevOffset.x;
+      this.gunMesh.position.y += this._gunDevOffset.y;
+      this.gunMesh.position.z += this._gunDevOffset.z;
+      if (this.gunHolder) {
+        this.gunHolder.position.x += this._gunDevOffset.x;
+        this.gunHolder.position.y += this._gunDevOffset.y;
+        this.gunHolder.position.z += this._gunDevOffset.z;
+      }
+    }
     this.viewmodel.rotation.x = vmRotX;
     this.viewmodel.rotation.y = vmRotY;
     this.viewmodel.rotation.z = vmRotZ;
+    this._updateDevPanel();
     this.viewmodel.visible = !(w.scope && this.adsAmount > 0.88);
 
     // --- Muzzle flash animation ---

@@ -104,11 +104,9 @@ export function preloadCharacter() {
 // Wrapped in try/catch — if the shader hook breaks, the character just looks
 // like the full body (no discard) which is the old behavior.
 function applyArmsOnlyMask(skinnedMesh, {
-  // Default: ONLY the right arm chain. Showing both arms makes the left arm
-  // dominate the screen because Mixamo's "reload" pose has both hands forward
-  // together — but the player's gun viewmodel is offset to the right, so the
-  // left arm ends up floating in space with nothing to hold.
-  armsRegex = /Right(Shoulder|Arm|ForeArm|Hand)/,
+  // Default: BOTH arm chains. The dev positioning panel lets the player
+  // place the arms so both hands grip the gun naturally.
+  armsRegex = /(Shoulder|Arm|ForeArm|Hand)/,
   threshold = 0.3,
 } = {}) {
   try {
