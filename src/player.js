@@ -826,10 +826,21 @@ Gun rotation Y: ${(s.gunRotY || 0).toFixed(3)}`;
     // Apply via the gunOffsetGroup transform — set once, no per-frame add.
     if (this.gunOffsetGroup) {
       this.gunOffsetGroup.position.set(s.gunX, s.gunY, s.gunZ);
-      this.gunOffsetGroup.rotation.y = s.gunRotY || 0;
+      // Clear any rotation on the group; rotation is applied per-piece below
+      // so the gun rotates around its OWN center, not around the camera.
+      this.gunOffsetGroup.rotation.y = 0;
     }
-    // Keep _gunDevOffset around for the COPY-values readout; not used live.
     if (this._gunDevOffset) this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
+    // Gun rotation around the gun's own center:
+    //   - gunMesh (fallback box) sits at the gun's viewmodel position, so
+    //     rotating it around its local Y rotates around its own center.
+    //     Base rotation is -0.05; add the dev offset.
+    //   - activeGunModel (loaded GLB wrap) is positioned at the gun's
+    //     cfg.position via gunmodels.js, so its local Y rotation is also
+    //     around its own center.
+    const rotY = s.gunRotY || 0;
+    if (this.gunMesh) this.gunMesh.rotation.y = -0.05 + rotY;
+    if (this.activeGunModel) this.activeGunModel.rotation.y = rotY;
   }
 
   // Reflect current _devState values back into both the slider and the
@@ -1170,6 +1181,8 @@ Gun rotation Y: ${(s.gunRotY || 0).toFixed(3)}`;
     this.gunHolder.add(model);
     this.activeGunModel = model;
     if (this.gunMesh) this.gunMesh.visible = false;
+    // Re-apply dev state so the new model picks up any gunRotY tweak.
+    if (this._devState && this._applyDevState) this._applyDevState();
     // If the GLB ships embedded animations (e.g. the sniper has a real reload
     // animation), build an AnimationMixer rooted at the cloned scene so we
     // can play those clips later. We pick the first clip that names "reload"
