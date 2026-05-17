@@ -103,7 +103,14 @@ export function preloadCharacter() {
 // shoulders + arms + hands stay fully visible, with no bone scaling required.
 // Wrapped in try/catch — if the shader hook breaks, the character just looks
 // like the full body (no discard) which is the old behavior.
-function applyArmsOnlyMask(skinnedMesh, { armsRegex = /Shoulder|Arm|Hand/, threshold = 0.3 } = {}) {
+function applyArmsOnlyMask(skinnedMesh, {
+  // Default: ONLY the right arm chain. Showing both arms makes the left arm
+  // dominate the screen because Mixamo's "reload" pose has both hands forward
+  // together — but the player's gun viewmodel is offset to the right, so the
+  // left arm ends up floating in space with nothing to hold.
+  armsRegex = /Right(Shoulder|Arm|ForeArm|Hand)/,
+  threshold = 0.3,
+} = {}) {
   try {
     const skel = skinnedMesh.skeleton;
     if (!skel || !skel.bones) return;

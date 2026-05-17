@@ -509,7 +509,10 @@ export class Player {
           if (o.isBone && /RightHand$/.test(o.name || '')) rightHand = o;
         });
         if (rightHand) {
-          const GUN_POS = new THREE.Vector3(0.32, -0.28, -0.55);
+          // Slightly above the gunMesh resting position so the wrist + part
+          // of the forearm have headroom in the viewport — otherwise the
+          // bottom of the screen clips the hand off.
+          const GUN_POS = new THREE.Vector3(0.32, -0.20, -0.55);
           const handWorld = new THREE.Vector3();
           rightHand.getWorldPosition(handWorld);
           this.viewmodel.worldToLocal(handWorld);
