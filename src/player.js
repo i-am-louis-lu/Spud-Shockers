@@ -491,20 +491,32 @@ export class Player {
           this._fpsArmsBusy = false;
           return;
         }
-        // Position character so the RIGHT hand lands roughly where the gun
-        // viewmodel sits (around 0.32, -0.28, -0.55). Math is approximate —
-        // Mixamo's Reloading frame 0 has both hands forward at chest level,
-        // so positioning the character offset to the LEFT-and-DOWN drops
-        // the right hand on/near the gun's grip.
-        // We no longer need bone scaling — the shader vertex mask in
-        // character.js handles the body-hiding cleanly.
-        bundle.mesh.position.set(0.18, -1.65, -0.2);
-        bundle.mesh.rotation.y = Math.PI;        // arms reach into camera -Z
-        bundle.mesh.traverse((o) => {
-          // Layer 1 is the first-person camera's enabled layer (alongside 0).
-          o.layers.set(1);
-        });
+        // Initial rough position — character looks vaguely toward the camera
+        // with arms forward. Real alignment happens after we add to viewmodel.
+        bundle.mesh.position.set(0, -1.65, -0.2);
+        bundle.mesh.rotation.y = Math.PI;
+        bundle.mesh.traverse((o) => o.layers.set(1));
         this.viewmodel.add(bundle.mesh);
+        // Now measure where the RIGHT hand bone landed in viewmodel-local
+        // coords, and slide the whole character so the hand lines up with
+        // the gun viewmodel's resting position. Skipping the math guesswork
+        // about Mixamo's coordinate conventions.
+        this.viewmodel.updateMatrixWorld(true);
+        bundle.mesh.updateMatrixWorld(true);
+        let rightHand = null;
+        bundle.mesh.traverse((o) => {
+          if (rightHand) return;
+          if (o.isBone && /RightHand$/.test(o.name || '')) rightHand = o;
+        });
+        if (rightHand) {
+          const GUN_POS = new THREE.Vector3(0.32, -0.28, -0.55);
+          const handWorld = new THREE.Vector3();
+          rightHand.getWorldPosition(handWorld);
+          this.viewmodel.worldToLocal(handWorld);
+          const delta = GUN_POS.clone().sub(handWorld);
+          bundle.mesh.position.add(delta);
+          this.fpsArmsRightHand = rightHand;
+        }
         this.fpsArms = bundle.mesh;
         this.fpsArmsMixer = bundle.mixer;
         this.fpsArmsActions = bundle.actions;
