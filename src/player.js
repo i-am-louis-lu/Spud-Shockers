@@ -367,11 +367,17 @@ export class Player {
     );
     this.gunMesh.position.set(0.32, -0.28, -0.55);
     this.gunMesh.rotation.y = -0.05;
-    this.viewmodel.add(this.gunMesh);
+    // gunOffsetGroup wraps the gun pieces so the F9 dev-panel can shift the
+    // whole gun once via this.gunOffsetGroup.position (assignment, not
+    // accumulation) without conflicting with the per-frame ADS/recoil
+    // writes that target gunMesh.position and gunHolder.position.
+    this.gunOffsetGroup = new THREE.Group();
+    this.viewmodel.add(this.gunOffsetGroup);
+    this.gunOffsetGroup.add(this.gunMesh);
     // gunHolder is what we swap children on. It hosts the loaded GLB and the
     // muzzle effects so they all kick/recoil together.
     this.gunHolder = new THREE.Group();
-    this.viewmodel.add(this.gunHolder);
+    this.gunOffsetGroup.add(this.gunHolder);
     this.activeGunModel = null;   // currently-mounted GLB clone (or null)
 
     // Reload prop — a small "ammo cartridge" mesh that animates in/out during
@@ -679,7 +685,12 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
       this.fpsArms.rotation.y = s.armsRotY;
       this.fpsArms.scale.setScalar(s.armsScale);
     }
-    this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
+    // Apply via the gunOffsetGroup transform — set once, no per-frame add.
+    if (this.gunOffsetGroup) {
+      this.gunOffsetGroup.position.set(s.gunX, s.gunY, s.gunZ);
+    }
+    // Keep _gunDevOffset around for the COPY-values readout; not used live.
+    if (this._gunDevOffset) this._gunDevOffset.set(s.gunX, s.gunY, s.gunZ);
   }
 
   // Reflect current _devState values back into both the slider and the
@@ -1668,18 +1679,6 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
     this.viewmodel.position.set(vmX, vmY, vmZ);
     this.gunMesh.position.x = THREE.MathUtils.lerp(0.32, 0.0, this.adsAmount);
     this.gunMesh.position.y = THREE.MathUtils.lerp(-0.28, -0.18, this.adsAmount);
-    // Dev-mode gun offset — added on top of the existing per-frame writes so
-    // ADS/recoil keep working. Stays at zero unless the user nudges it via F9.
-    if (this._gunDevOffset) {
-      this.gunMesh.position.x += this._gunDevOffset.x;
-      this.gunMesh.position.y += this._gunDevOffset.y;
-      this.gunMesh.position.z += this._gunDevOffset.z;
-      if (this.gunHolder) {
-        this.gunHolder.position.x += this._gunDevOffset.x;
-        this.gunHolder.position.y += this._gunDevOffset.y;
-        this.gunHolder.position.z += this._gunDevOffset.z;
-      }
-    }
     this.viewmodel.rotation.x = vmRotX;
     this.viewmodel.rotation.y = vmRotY;
     this.viewmodel.rotation.z = vmRotZ;
