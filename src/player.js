@@ -1297,8 +1297,17 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     this.gunHolder.add(model);
     this.activeGunModel = model;
     if (this.gunMesh) this.gunMesh.visible = false;
-    // Re-apply dev state so the new model picks up any gunRotY tweak.
-    if (this._devState && this._applyDevState) this._applyDevState();
+    // Apply the FPS_OFFSETS for the weapon that's actually loading — NOT
+    // whatever _devState currently holds, which during switchWeapon's flow
+    // is sometimes still the PREVIOUS weapon's values (we get called BEFORE
+    // _applyFpsOffsetsForWeapon runs at the end of switchWeapon). When a
+    // GLB loads async, this also ensures we don't apply stale state from
+    // a weapon the user has since switched away from.
+    if (this._applyFpsOffsetsForWeapon) {
+      this._applyFpsOffsetsForWeapon(weaponKey);
+    } else if (this._devState && this._applyDevState) {
+      this._applyDevState();
+    }
     // If the GLB ships embedded animations (e.g. the sniper has a real reload
     // animation), build an AnimationMixer rooted at the cloned scene so we
     // can play those clips later. We pick the first clip that names "reload"
