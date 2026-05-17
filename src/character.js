@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // Mixamo characters are modelled in centimeters; scale down to meters.
-const MIXAMO_SCALE = 0.009;
+const MIXAMO_SCALE = 0.011;
 
 const FILES = {
   walking:   'assets/character/mx_Walking.glb',
@@ -96,13 +96,70 @@ export function preloadCharacter() {
   return _loadPromise;
 }
 
+// Custom-shader vertex mask. Walks the skinned mesh's skeleton, picks out the
+// arm-chain bones, and injects a tiny snippet into the material shader that
+// discards any vertex whose skin-weight to those arm bones is below a small
+// threshold. End result: the chest / hips / legs vanish entirely while the
+// shoulders + arms + hands stay fully visible, with no bone scaling required.
+// Wrapped in try/catch — if the shader hook breaks, the character just looks
+// like the full body (no discard) which is the old behavior.
+function applyArmsOnlyMask(skinnedMesh, { armsRegex = /Shoulder|Arm|Hand/, threshold = 0.3 } = {}) {
+  try {
+    const skel = skinnedMesh.skeleton;
+    if (!skel || !skel.bones) return;
+    const armIdx = [];
+    skel.bones.forEach((b, i) => {
+      const n = b?.name || '';
+      // "Arm" matches both Arm and ForeArm. Hand matches Hand + finger bones.
+      if (armsRegex.test(n)) armIdx.push(i);
+    });
+    if (armIdx.length === 0) return;
+    const MAX = Math.max(armIdx.length, 64);
+    const armArr = new Array(MAX).fill(-1);
+    armIdx.forEach((v, i) => { armArr[i] = v; });
+    const mat = skinnedMesh.material;
+    if (!mat) return;
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.armBoneIndices = { value: armArr };
+      shader.uniforms.numArmBones = { value: armIdx.length };
+      shader.vertexShader =
+        `varying float vArmWeight;\n` +
+        `uniform int armBoneIndices[${MAX}];\n` +
+        `uniform int numArmBones;\n` +
+        shader.vertexShader.replace(
+          '#include <skinning_vertex>',
+          `#include <skinning_vertex>
+           float armWt = 0.0;
+           for (int i = 0; i < ${MAX}; i++) {
+             if (i >= numArmBones) break;
+             int idx = armBoneIndices[i];
+             if (int(skinIndex.x) == idx) armWt += skinWeight.x;
+             if (int(skinIndex.y) == idx) armWt += skinWeight.y;
+             if (int(skinIndex.z) == idx) armWt += skinWeight.z;
+             if (int(skinIndex.w) == idx) armWt += skinWeight.w;
+           }
+           vArmWeight = armWt;`,
+        );
+      shader.fragmentShader =
+        `varying float vArmWeight;\n` +
+        shader.fragmentShader.replace(
+          'void main() {',
+          `void main() { if (vArmWeight < ${threshold.toFixed(3)}) discard;`,
+        );
+    };
+    mat.needsUpdate = true;
+  } catch (err) {
+    console.warn('[character] arms-only shader mask failed', err);
+  }
+}
+
 // Returns { mesh, mixer, actions, play } for a fresh clone, or null if the
 // character system isn't ready. Never throws.
 // Default tint is a light skin/peach tone — the Mixamo character's original
 // textures got stripped during the FBX→GLB optimization (we resize textures
 // to 32x32 to keep the bundle small), so we substitute a flat material that
 // reads as "skin" rather than the old brown.
-export async function makeCharacter({ tint = 0xe8c6a4 } = {}) {
+export async function makeCharacter({ tint = 0xe8c6a4, armsOnly = false } = {}) {
   if (!_ready || !_template) return null;
   try {
     // SkeletonUtils lives at /utils/SkeletonUtils.js — dynamic-import so a
@@ -116,6 +173,11 @@ export async function makeCharacter({ tint = 0xe8c6a4 } = {}) {
         o.receiveShadow = true;
         o.frustumCulled = false;
         o.material = new THREE.MeshLambertMaterial({ color: tint });
+        // Arms-only mode (FPS view) — discard non-arm vertices in the shader
+        // so head/chest/legs disappear cleanly without breaking the skeleton.
+        if (armsOnly && o.isSkinnedMesh) {
+          applyArmsOnlyMask(o);
+        }
       }
     });
     const mixer = new THREE.AnimationMixer(mesh);

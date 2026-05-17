@@ -483,30 +483,26 @@ export class Player {
           this._fpsArmsBusy = false;
           return;   // not ready yet — we'll retry next frame
         }
-        // Light peach/skin tone (was brown 0xd9a86b — felt off for hands).
-        const bundle = await mod.makeCharacter({ tint: 0xe8c6a4 });
+        // Light peach/skin tone. armsOnly enables a shader vertex mask in
+        // character.js that discards everything not weighted to the
+        // shoulder→arm→forearm→hand chain, so torso/head/legs vanish.
+        const bundle = await mod.makeCharacter({ tint: 0xe8c6a4, armsOnly: true });
         if (!bundle || !bundle.mesh) {
           this._fpsArmsBusy = false;
           return;
         }
-        // Move character slightly DOWN so the chest sits below eye level and
-        // forward 10cm so more of the arm (not just the hand) reaches into
-        // the camera frame.
-        bundle.mesh.position.set(0, -1.65, -0.1);
+        // Position character so the RIGHT hand lands roughly where the gun
+        // viewmodel sits (around 0.32, -0.28, -0.55). Math is approximate —
+        // Mixamo's Reloading frame 0 has both hands forward at chest level,
+        // so positioning the character offset to the LEFT-and-DOWN drops
+        // the right hand on/near the gun's grip.
+        // We no longer need bone scaling — the shader vertex mask in
+        // character.js handles the body-hiding cleanly.
+        bundle.mesh.position.set(0.18, -1.65, -0.2);
         bundle.mesh.rotation.y = Math.PI;        // arms reach into camera -Z
         bundle.mesh.traverse((o) => {
           // Layer 1 is the first-person camera's enabled layer (alongside 0).
           o.layers.set(1);
-          if (o.isBone) {
-            const n = o.name || '';
-            // Hide head/neck/legs only — NEVER scale Hips (it's the skeleton
-            // root, so collapsing it collapses the entire character including
-            // the arms). And we can't scale Spine/Spine1/Spine2 either since
-            // those are parents of the shoulder→arm chain.
-            if (/Head|Neck|^.*UpLeg$|^.*Leg$|Foot|Toe/.test(n)) {
-              o.scale.setScalar(0.001);
-            }
-          }
         });
         this.viewmodel.add(bundle.mesh);
         this.fpsArms = bundle.mesh;
