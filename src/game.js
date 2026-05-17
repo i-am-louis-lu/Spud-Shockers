@@ -905,6 +905,10 @@ export class Game {
 
   checkMatchEnd() {
     if (this.matchOver) return;
+    // F9 dev mode → infinite match. Keeps the player from being kicked to the
+    // match-end screen mid-tuning. Set by player._setupDevPanel() based on
+    // whether the dev panel is open.
+    if (this.devInfinite) return;
     if (this.teamKills.mash >= this.matchGoal || this.teamKills.russet >= this.matchGoal) {
       this.matchOver = true;
       const winningTeam = this.teamKills.mash >= this.matchGoal ? 'mash' : 'russet';

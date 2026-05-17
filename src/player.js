@@ -623,10 +623,19 @@ export class Player {
       'display:none', 'border:1px solid #5effb8',
       'min-width:380px',
     ].join(';');
+    // Pick the weapon list off the global WEAPONS table so adding a new gun
+    // automatically gives it a dev-panel button.
+    const weaponBtns = Object.entries(WEAPONS).map(([key, w]) =>
+      `<button class="dev-weapon-btn" data-weapon="${key}" style="background:#222;color:#5effb8;border:1px solid #5effb8;padding:3px 8px;font-family:monospace;font-size:11px;cursor:pointer;border-radius:4px;margin:2px">${w.name}</button>`
+    ).join('');
     panel.innerHTML = `
       <div style="font-weight:bold;margin-bottom:6px;border-bottom:1px solid #5effb8;padding-bottom:4px">
         F9 DEV MODE — arms/gun positioner
       </div>
+      <div style="margin-bottom:6px;font-size:10px;opacity:0.85">
+        Switch weapon to tune (any gun, ignores loadout):
+      </div>
+      <div id="dev-weapon-row" style="margin-bottom:8px;text-align:center">${weaponBtns}</div>
       <div data-row="armsX"></div>
       <div data-row="armsY"></div>
       <div data-row="armsZ"></div>
@@ -640,7 +649,7 @@ export class Player {
         <button id="dev-copy" style="background:#5effb8;color:#000;border:0;padding:4px 12px;font-family:monospace;cursor:pointer;border-radius:4px">COPY VALUES</button>
         <button id="dev-reset" style="background:#444;color:#5effb8;border:1px solid #5effb8;padding:4px 8px;font-family:monospace;cursor:pointer;border-radius:4px;margin-left:6px">RESET</button>
       </div>
-      <div id="dev-status" style="margin-top:6px;font-size:10px;opacity:0.7;text-align:center;min-height:14px"></div>
+      <div id="dev-status" style="margin-top:6px;font-size:10px;opacity:0.7;text-align:center;min-height:14px">Infinite match while dev panel is open</div>
     `;
     document.body.appendChild(panel);
     this._devPanel = panel;
@@ -706,6 +715,27 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
       this._applyDevState();
     });
 
+    // Weapon swap buttons — bypass the loadout restriction entirely so the
+    // user can tune every gun, not just the three in their current loadout.
+    panel.querySelectorAll('.dev-weapon-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const w = btn.dataset.weapon;
+        if (!w || !WEAPONS[w]) return;
+        // Add to loadout in slot 0 so weapon-switch keys (1/2/3) still work,
+        // and switchWeapon() doesn't conflict with the current weapon name.
+        this.loadout = [w, 'spudgun', 'knife'];
+        // Highlight which button is the active one.
+        panel.querySelectorAll('.dev-weapon-btn').forEach((b) => {
+          b.style.background = b.dataset.weapon === w ? '#5effb8' : '#222';
+          b.style.color = b.dataset.weapon === w ? '#000' : '#5effb8';
+        });
+        // Same path that 1/2/3 keys use — handles ammo, GLB swap, FPS offsets.
+        if (w !== this.currentWeapon) {
+          this.switchWeapon(w);
+        }
+      });
+    });
+
     document.addEventListener('keydown', (e) => {
       const ae = document.activeElement;
       if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
@@ -715,6 +745,17 @@ Gun offset: (${s.gunX.toFixed(3)}, ${s.gunY.toFixed(3)}, ${s.gunZ.toFixed(3)})`;
         this._devMode = !this._devMode;
         panel.style.display = this._devMode ? 'block' : 'none';
         if (this._devMode && document.pointerLockElement) document.exitPointerLock();
+        // Tell the game whether to skip its match-end check while dev mode
+        // is open, so the match doesn't end mid-tuning.
+        if (this.game) this.game.devInfinite = this._devMode;
+        // Initial highlight on the panel for the currently equipped weapon.
+        if (this._devMode) {
+          panel.querySelectorAll('.dev-weapon-btn').forEach((b) => {
+            const active = b.dataset.weapon === this.currentWeapon;
+            b.style.background = active ? '#5effb8' : '#222';
+            b.style.color = active ? '#000' : '#5effb8';
+          });
+        }
       }
     });
   }
