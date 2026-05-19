@@ -795,6 +795,21 @@ export class Game {
         dead: true,
       });
     }
+    // Persistent-respawn queue — preserve the bot's identity (name + kills)
+    // so the NEXT spawnBot() for their team inherits it. Without this, dying
+    // resets the bot's leaderboard row to "new spud with 0 kills", which the
+    // user noticed as "their 7 kills disappear but the team counter keeps
+    // them". Skip bots that have never scored — their identity isn't worth
+    // tracking and replacing them with a fresh spud keeps name diversity high.
+    if (victim && victim.team && victim.kills > 0) {
+      this._respawnQueue[victim.team].push({
+        name: victim.name,
+        kills: victim.kills,
+        skill: victim.skill,
+        archetype: victim.archetype,
+        bestStreak: victim.bestStreak || 0,
+      });
+    }
     // Multiplayer relay (host only): tell the client about every bot death
     // so their RemoteBot mirror updates + they get a kill banner if it was them.
     if (this.isMpHost && this.multiplayer && this.multiplayer.connected) {
