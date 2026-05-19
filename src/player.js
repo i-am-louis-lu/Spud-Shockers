@@ -863,7 +863,12 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
   // Switches the FPS arms + gun offset to whatever's configured for the
   // given weapon. Falls back to the auto-aligned baseline if no entry.
   _applyFpsOffsetsForWeapon(weaponName) {
-    if (!this.fpsArms || !this._devState) return;
+    // We still write the gun rotation/position even when the FPS arms haven't
+    // loaded yet — otherwise the gun keeps whatever rotation cfg.rotation put
+    // on it (via gunmodels.js), which doesn't match the F9-dialed gunRotX/Y/Z
+    // values and produces "random" tilted/down-pointing guns on game start.
+    // _applyDevState already guards the arm-specific operations internally.
+    if (!this._devState) return;
     const o = FPS_OFFSETS[weaponName] || this._fpsArmsBaseline;
     if (o) {
       Object.assign(this._devState, o);
