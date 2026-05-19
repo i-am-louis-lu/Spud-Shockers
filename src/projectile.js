@@ -22,6 +22,12 @@ export class Projectile {
     this.timedFuse = (opts.fuse || 0) > 0;
     this.life = 5;
     this.dead = false;
+    // Damage falloff: distance from spawn point at hit-time scales damage.
+    // Per-weapon curve `{ start, end, min }` defined in weapons.js. We snapshot
+    // the start position so a fast-moving projectile's pre-hit distance is
+    // measurable regardless of how many sub-steps it took to get there.
+    this.startPos = opts.position.clone();
+    this.falloff = opts.falloff || null;
 
     const geo = new THREE.SphereGeometry(this.size, 10, 8);
     geo.scale(1, 1.3, 1);
