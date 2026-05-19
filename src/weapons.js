@@ -29,6 +29,9 @@ export const WEAPONS = {
     // meters, then flat. Sidearm has gentle falloff — still usable at range
     // but rifle/sniper outclass at long distances.
     falloff: { start: 22, end: 50, min: 0.55 },
+    // CS-style zoom permission. Only the AR (red-dot ADS) and Sniper (scope)
+    // have RMB zoom — shotguns, pistols, SMGs, grenade launchers don't.
+    canZoom: false,
   },
   fryer: {
     name: 'Fry-er',
