@@ -26,6 +26,13 @@ export async function loadGlbMap(url, opts = {}) {
   const yOffset   = opts.yOffset   ?? 0;            // raise/lower whole map
   const centerXZ  = opts.centerXZ  ?? true;         // re-center horizontally
   const padObst   = opts.collisionPadding ?? 0.05;  // shrink AABBs slightly so adjacent boxes don't overlap
+  // Auto-scale: if the loaded model's biggest horizontal dimension is far
+  // from this target (in meters), uniformly scale it to fit. Set to null to
+  // disable. Sketchfab models are authored at wildly different scales —
+  // some at meter scale, some at centimeter, some at "Unreal Engine 100×"
+  // scale — so this is the difference between a usable map and an invisible
+  // dot or an unwalkable continent.
+  const targetWidth = opts.targetWidth ?? 120;
 
   const loader = new GLTFLoader();
   const gltf = await new Promise((resolve, reject) => {
@@ -34,6 +41,33 @@ export async function loadGlbMap(url, opts = {}) {
   const root = gltf.scene;
   root.scale.setScalar(scale);
   root.updateMatrixWorld(true);
+
+  // Probe the loaded model's visible-mesh bbox BEFORE any centering, so we
+  // know what scale factor to apply. Use only meshes (not stray empties),
+  // and skip anything > 1000m on any side (skyboxes).
+  if (targetWidth) {
+    const probeBox = new THREE.Box3();
+    probeBox.makeEmpty();
+    const probeTmp = new THREE.Box3();
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      probeTmp.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+      const sz = probeTmp.getSize(new THREE.Vector3());
+      if (sz.x > 1000 || sz.y > 1000 || sz.z > 1000) return;
+      probeBox.union(probeTmp);
+    });
+    if (!probeBox.isEmpty()) {
+      const sz = probeBox.getSize(new THREE.Vector3());
+      const biggest = Math.max(sz.x, sz.z);
+      if (biggest > 1 && (biggest < targetWidth * 0.5 || biggest > targetWidth * 2)) {
+        const factor = targetWidth / biggest;
+        root.scale.multiplyScalar(factor);
+        root.updateMatrixWorld(true);
+        console.log('[glbmap] auto-scaled by', factor.toFixed(3), '(original width', biggest.toFixed(1), 'm → target', targetWidth, 'm)');
+      }
+    }
+  }
 
   // Compute centering based on the WEIGHTED CENTROID of all real meshes,
   // NOT the bounding box of the entire scene graph. Sketchfab models often
