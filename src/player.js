@@ -587,6 +587,11 @@ export class Player {
     this._knifeSwing = 0;
     // Knife right-click dash — burst of speed with cooldown
     this._knifeDashCooldown = 0;
+    // Inspect (I) animation timer — counts DOWN from 1.4 to 0
+    this._inspectTimer = 0;
+    // Spray-pattern memory — index advances per shot, resets after pause
+    this._sprayCount = 0;
+    this._sprayLastShotAt = null;
     // Sentry tripod base — only visible while sentry mode is active
     this.sentryBase = new THREE.Group();
     const tripodMat = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.85 });
