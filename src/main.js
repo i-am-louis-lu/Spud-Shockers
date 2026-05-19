@@ -404,45 +404,8 @@ nameInput.addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && !startBtn.disabled) startBtn.click();
 });
 
-// ---- Map picker (Classic vs Custom Voxel) ----
-// Persisted to localStorage so the user's choice survives page reloads.
-const STORE_MAP_CHOICE = 'spudshockers.mapchoice';
-let mapChoice = localStorage.getItem(STORE_MAP_CHOICE) || 'classic';
-function applyMapChoiceHighlight() {
-  document.querySelectorAll('#map-picker .map-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.map === mapChoice);
-  });
-}
-document.querySelectorAll('#map-picker .map-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    mapChoice = btn.dataset.map || 'classic';
-    localStorage.setItem(STORE_MAP_CHOICE, mapChoice);
-    applyMapChoiceHighlight();
-  });
-});
-applyMapChoiceHighlight();
-
-startBtn.addEventListener('click', async () => {
+startBtn.addEventListener('click', () => {
   commitName();
-  // If the user picked a custom voxel map, try to load it before starting.
-  // We do this BEFORE hiding the start screen so a load failure can show
-  // a hint inline instead of dumping the player into a half-loaded match.
-  if (mapChoice === 'custom') {
-    startBtn.disabled = true;
-    startBtn.textContent = 'LOADING MAP…';
-    const ok = await game.loadVoxMap('maps/custom.vox');
-    if (!ok) {
-      startBtn.disabled = false;
-      startBtn.textContent = 'START MASHING';
-      const hint = document.querySelector('.map-hint');
-      if (hint) {
-        hint.innerHTML = '<b style="color:#ff5e3a">Could not load maps/custom.vox.</b> ' +
-          'Make sure the file exists. Build one in MagicaVoxel and save as <code>maps/custom.vox</code>.';
-      }
-      return;
-    }
-    startBtn.textContent = 'START MASHING';
-  }
   document.getElementById('start-screen').style.display = 'none';
   game.start();
 });
