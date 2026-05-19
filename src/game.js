@@ -644,6 +644,22 @@ export class Game {
     const spawnList = this.arena.teamSpawns[team];
     const sp = spawnList[Math.floor(Math.random() * spawnList.length)];
     const bot = new Bot(this, sp.clone(), team);
+    // Inherit identity from a previously-dead bot on the same team, if any.
+    // Their name + kill count persist so the leaderboard stays consistent
+    // across deaths — same "player" respawning, not a fresh nobody.
+    const inherit = this._respawnQueue[team].shift();
+    if (inherit) {
+      bot.name = inherit.name;
+      bot.kills = inherit.kills;
+      if (inherit.skill != null) bot.skill = inherit.skill;
+      if (inherit.bestStreak) bot.bestStreak = inherit.bestStreak;
+      // Strip the duplicate snapshot in deadBotRoster so end-card stats don't
+      // double-count this bot's contributions across the death/respawn cycle.
+      const ix = this.deadBotRoster.findIndex(
+        (r) => r.name === inherit.name && r.team === team,
+      );
+      if (ix !== -1) this.deadBotRoster.splice(ix, 1);
+    }
     this.bots.push(bot);
     // Buddy pairing — find an unpaired teammate, pair them up. New bots tend to
     // partner with the most-recently-spawned solo bot, so squads form on the fly.
