@@ -932,6 +932,19 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     // values and produces "random" tilted/down-pointing guns on game start.
     // _applyDevState already guards the arm-specific operations internally.
     if (!this._devState) return;
+    // CRITICAL: reset every gun key to its neutral default BEFORE merging the
+    // new weapon's overrides. Reason: FPS_OFFSETS entries only declare the
+    // keys they care about (e.g. Fryer specifies gunRotY but NOT gunRotZ).
+    // Without this reset, switching from Masher/Tossor (which set gunRotZ:
+    // ≈-1.5 to roll their barrels into the world-forward axis) to any other
+    // gun leaves the -1.5 Z-roll in _devState — and the new gun's barrel
+    // appears tilted/pointing-down. This is the "random gun rotation" bug.
+    const GUN_DEFAULTS = {
+      gunX: 0, gunY: 0, gunZ: 0,
+      gunRotX: 0, gunRotY: 0, gunRotZ: 0,
+      gunScale: 1.0,
+    };
+    Object.assign(this._devState, GUN_DEFAULTS);
     const o = FPS_OFFSETS[weaponName] || this._fpsArmsBaseline;
     if (o) {
       Object.assign(this._devState, o);
