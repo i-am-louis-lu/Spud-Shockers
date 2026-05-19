@@ -392,6 +392,51 @@ export class Game {
     this.sfx.streak(level);
   }
 
+  // Load a .glb / .gltf as the active map. Clears the procedural buildings
+  // + their obstacles (ground / sky / perimeter wall stay), drops the
+  // GLB scene in, adopts AABB obstacles from each mesh, and overrides team
+  // spawn points using either named "Spawn_Mash"/"Spawn_Russet" meshes or
+  // auto-placed defaults at opposite ends of the map.
+  //
+  // Returns true on success, false on any load failure (so the start screen
+  // can show an inline error instead of dropping the player into a broken
+  // match).
+  async loadGlbMap(url, opts = {}) {
+    const { loadGlbMap } = await import('./glbmap.js');
+    let map;
+    try {
+      map = await loadGlbMap(url, opts);
+    } catch (err) {
+      console.warn('[glbmap] failed to load', url, err);
+      return false;
+    }
+    // Wipe procedural buildings + their AABBs. Anything added through
+    // arena.addBox carries a `.mesh` reference; decor (trees, banners)
+    // added via addDecor doesn't and gets left in place. We then also
+    // remove the ground/perimeter visuals by clearing the entire arena
+    // scene group is overkill — keep them, the GLB sits on top.
+    for (const o of this.arena.obstacles) {
+      if (o.mesh) {
+        this.scene.remove(o.mesh);
+        if (o.mesh.geometry) o.mesh.geometry.dispose();
+        if (o.mesh.material && !Array.isArray(o.mesh.material)) o.mesh.material.dispose();
+      }
+    }
+    this.arena.obstacles.length = 0;
+    this.scene.add(map.root);
+    for (const o of map.obstacles) this.arena.obstacles.push(o);
+    this.arena.teamSpawns.mash   = map.spawns.mash.map(  (s) => new THREE.Vector3(s.x, s.y, s.z));
+    this.arena.teamSpawns.russet = map.spawns.russet.map((s) => new THREE.Vector3(s.x, s.y, s.z));
+    if (map.spawnZones.mash)   this.arena.teamSpawnZones.mash   = map.spawnZones.mash;
+    if (map.spawnZones.russet) this.arena.teamSpawnZones.russet = map.spawnZones.russet;
+    // NavGrid samples obstacles at construction; rebuild since obstacles
+    // just changed completely. Otherwise bot pathfinding routes through
+    // the now-deleted procedural walls.
+    this.navGrid = new NavGrid(this.arena, 1);
+    this._customMap = map;
+    return true;
+  }
+
   loop() {
     if (!this.running) return;
     requestAnimationFrame(() => this.loop());
