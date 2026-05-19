@@ -91,6 +91,8 @@ export const WEAPONS = {
     recoilRecover: 8,
     kickAmt: 0.20,
     shakeAmt: 0.10,
+    // Pump shotgun — savage close, near-useless past 14m
+    falloff: { start: 6, end: 18, min: 0.18 },
   },
   masher: {
     name: 'Masher',
