@@ -16,7 +16,7 @@ import { Multiplayer, RemotePlayer, RemoteBot } from './multiplayer.js';
 // a circular-import dance — the runtime resolves it via the import above.
 const BotRef = Bot;
 
-const MATCH_GOAL = 30;
+const MATCH_GOAL = 50;
 
 // Killstreak rewards — triggered as the player's streak crosses each threshold
 // without dying. Each one is an active world effect on top of the banner/SFX.
