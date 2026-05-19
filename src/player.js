@@ -1167,7 +1167,9 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
         // Knife repurposes right-click as a short speed dash buff instead of ADS
         if (this.currentWeapon === 'knife') {
           this._triggerKnifeDash();
-        } else {
+        } else if (WEAPONS[this.currentWeapon]?.canZoom) {
+          // CS-style — only weapons explicitly marked canZoom can ADS.
+          // Shotguns/SMGs/pistols/grenade-launchers fire from hip only.
           this.ads = true;
         }
       }
