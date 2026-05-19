@@ -271,6 +271,14 @@ export class Projectile {
       if (player._shotPendingHit && player.matchStats) {
         player._shotPendingHit = false;
         player.matchStats.shotsHit++;
+        // DEAD-EYE achievement — N consecutive trigger pulls that landed
+        // at least one pellet. Resets in player.fire() when a pull misses.
+        player._hitStreak = (player._hitStreak || 0) + 1;
+        if (player._hitStreak === 5 && this.game.announceStreak) {
+          this.game.announceStreak('★ DEAD-EYE × 5', '#5effb8', 4);
+        } else if (player._hitStreak === 10 && this.game.announceStreak) {
+          this.game.announceStreak('★ DEAD-EYE × 10 — UNREAL', '#ffd700', 5);
+        }
       }
       if (isHeadshot) {
         if (player.matchStats) player.matchStats.headshots++;
