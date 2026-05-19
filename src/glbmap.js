@@ -201,10 +201,10 @@ export async function loadGlbMap(url, opts = {}) {
     const mapMin = mapBox.min, mapMax = mapBox.max;
     const midX = (mapMin.x + mapMax.x) / 2;
     const padZ = 6;
-    // Place spawns 1.5m above the map's highest visible point. Player falls,
-    // lands on whatever's solid below. Less precise than per-spawn floor
-    // detection but rock-solid for any reasonable map.
-    const yDrop = mapMax.y + 1.5;
+    // Place spawns just above y=0 (the invisible safety floor that game.js
+    // adds before mounting the GLB). The player drops onto the safety floor
+    // and walks the map at ground level.
+    const yDrop = 1.5;
     if (spawns.mash.length === 0) {
       for (let i = -1; i <= 1; i++) {
         spawns.mash.push({ x: midX + i * 6, y: yDrop, z: mapMax.z - padZ });
