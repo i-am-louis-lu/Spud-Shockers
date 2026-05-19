@@ -2418,6 +2418,19 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     let spread = (overrides.spread != null)
       ? overrides.spread
       : (this.ads ? (w.adsSpread ?? w.spread * 0.25) : w.spread);
+    // Movement accuracy — stand still to hit, run-and-gun is wild. ADS bypasses
+    // this entirely (the player chose precision over mobility).
+    if (!this.ads && overrides.spread == null) {
+      const horizSpeedSq = this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z;
+      const isSprinting = (this.keys.ShiftLeft || this.keys.ShiftRight) && !this.sentryActive;
+      if (isSprinting && horizSpeedSq > 4) {
+        spread *= 2.0;       // sprinting — bullets go everywhere
+      } else if (horizSpeedSq > 1) {
+        spread *= 1.35;      // walking — gentle penalty
+      } else {
+        spread *= 0.80;      // standing still — tighter than default
+      }
+    }
     let skipSniperFx = false;
     // Global recoil reduction — felt too punchy at the previous values.
     let recoilMult = (this.ads ? 0.45 : 1) * 0.8;
