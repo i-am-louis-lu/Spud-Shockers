@@ -1283,6 +1283,14 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       });
       this.activeGunModel = null;
     }
+    // Clear any residual transform on the holder. The knife-slash animation
+    // mutates gunHolder.rotation/position (lines ~2112) and its "reset to 0"
+    // branch only fires while the knife is still equipped — swapping mid-swing
+    // used to leave the new gun stuck at the knife's recovery pose (tip-down).
+    if (this.gunHolder) {
+      this.gunHolder.rotation.set(0, 0, 0);
+      this.gunHolder.position.set(0, 0, 0);
+    }
     if (!gunIsLoaded(weaponKey)) {
       // Not ready — show the fallback box, async-load, retry on settle.
       if (this.gunMesh) this.gunMesh.visible = true;
