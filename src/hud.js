@@ -332,22 +332,20 @@ export class HUD {
 
     // Spawn-zone shading — colored tint at each team's spawn area so the
     // player can read map context (where their team rallies vs the enemy's).
+    // Zones are stored as AABBs {minX, maxX, minZ, maxZ}.
     const arena = this.game.arena;
     const drawZone = (zone, color) => {
       if (!zone) return;
-      const dx = (zone.cx ?? zone.x) - p.position.x;
-      const dz = (zone.cz ?? zone.z) - p.position.z;
-      const sx = cx + dx * scale;
-      const sy = cy + dz * scale;
-      const r = (zone.radius || 12) * scale;
+      const w = (zone.maxX - zone.minX) * scale;
+      const h = (zone.maxZ - zone.minZ) * scale;
+      const sx = cx + (zone.minX - p.position.x) * scale;
+      const sy = cy + (zone.minZ - p.position.z) * scale;
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(sx, sy, r, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(sx, sy, w, h);
     };
     if (arena?.teamSpawnZones) {
-      drawZone(arena.teamSpawnZones.mash, 'rgba(194,58,58,0.15)');
-      drawZone(arena.teamSpawnZones.russet, 'rgba(58,92,194,0.15)');
+      drawZone(arena.teamSpawnZones.mash, 'rgba(194,58,58,0.18)');
+      drawZone(arena.teamSpawnZones.russet, 'rgba(58,92,194,0.18)');
     }
 
     // Helper to plot one entity. Off-radar (dist > range) entities get clamped
