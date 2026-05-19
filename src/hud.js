@@ -298,6 +298,189 @@ export class HUD {
     this.updateNametags();
     this.updateLockOn();
     this.updateMomentumChip();
+    this.updateMinimap(p);
+    this.updateLowHp(p);
+    this.updateStreakTeaser(p);
+    this.updateHeadshotBanner();
+  }
+
+  // Top-right radar. North-up (world axes preserved), player at center, arrow
+  // shows player's facing. Enemy entities drawn as red dots, allies blue.
+  // Range = 60 world units; anything farther is clamped to a faint edge marker
+  // so the player still knows "an enemy is that direction but distant".
+  updateMinimap(p) {
+    const ctx = this.minimapCtx;
+    const canvas = this.minimapCanvas;
+    if (!ctx || !canvas) return;
+    const W = canvas.width, H = canvas.height;
+    const cx = W * 0.5, cy = H * 0.5;
+    const radius = W * 0.5 - 2;
+    const range = 60;                       // visible world half-extent
+    const scale = radius / range;
+    ctx.clearRect(0, 0, W, H);
+
+    // Radar grid: two crosshairs + one mid-range ring. Subtle.
+    ctx.strokeStyle = 'rgba(196,122,61,0.30)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, 4); ctx.lineTo(cx, H - 4);
+    ctx.moveTo(4, cy); ctx.lineTo(W - 4, cy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Spawn-zone shading — colored tint at each team's spawn area so the
+    // player can read map context (where their team rallies vs the enemy's).
+    const arena = this.game.arena;
+    const drawZone = (zone, color) => {
+      if (!zone) return;
+      const dx = (zone.cx ?? zone.x) - p.position.x;
+      const dz = (zone.cz ?? zone.z) - p.position.z;
+      const sx = cx + dx * scale;
+      const sy = cy + dz * scale;
+      const r = (zone.radius || 12) * scale;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    if (arena?.teamSpawnZones) {
+      drawZone(arena.teamSpawnZones.mash, 'rgba(194,58,58,0.15)');
+      drawZone(arena.teamSpawnZones.russet, 'rgba(58,92,194,0.15)');
+    }
+
+    // Helper to plot one entity. Off-radar (dist > range) entities get clamped
+    // to the rim with a smaller, dimmer dot so off-screen threats still show.
+    const playerTeam = p.team;
+    const drawEntity = (ent, isPlayer = false) => {
+      if (ent.dead) return;
+      const dx = ent.position.x - p.position.x;
+      const dz = ent.position.z - p.position.z;
+      const dist = Math.hypot(dx, dz);
+      const isAlly = ent.team === playerTeam;
+      let sx, sy, dotR, alpha;
+      if (dist <= range) {
+        sx = cx + dx * scale;
+        sy = cy + dz * scale;
+        dotR = isPlayer ? 0 : 3.2;
+        alpha = 1;
+      } else {
+        // Clamp to rim
+        const a = Math.atan2(dz, dx);
+        sx = cx + Math.cos(a) * (radius - 4);
+        sy = cy + Math.sin(a) * (radius - 4);
+        dotR = 2.2;
+        alpha = 0.45;
+      }
+      ctx.fillStyle = isAlly ? `rgba(80,160,255,${alpha})` : `rgba(255,80,80,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
+      ctx.fill();
+      // Brighter ring on the entity currently locked-on, so the player feels
+      // their lock target visually.
+      if (this.game.lockTarget === ent && dist <= range) {
+        ctx.strokeStyle = '#ffd97a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    };
+
+    // Bots + remote bots + remote player. Host-vs-client both work because
+    // bots either live in game.bots OR are mirrored in game.remoteBots.
+    const allEnemies = this.game.isMpClient && this.game.remoteBots
+      ? [...this.game.remoteBots.values()]
+      : this.game.bots;
+    for (const b of allEnemies) drawEntity(b);
+    if (this.game.remotePlayer) drawEntity(this.game.remotePlayer);
+
+    // Player arrow at center — equilateral triangle pointing in yaw direction.
+    // World forward at yaw=0 is -Z, which on this radar (screen +Y = world +Z)
+    // means screen -Y = "up". Standard atan2(forwardX, forwardZ) for the angle.
+    const forwardX = -Math.sin(p.yaw);
+    const forwardZ = -Math.cos(p.yaw);
+    const angle = Math.atan2(forwardZ, forwardX);   // -π..+π on canvas plane
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle + Math.PI / 2);   // align triangle tip to forward
+    ctx.fillStyle = '#5effb8';
+    ctx.beginPath();
+    ctx.moveTo(0, -7);
+    ctx.lineTo(5, 5);
+    ctx.lineTo(-5, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#0c1a0c';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Pulsing red vignette when HP is low. Two intensity tiers so "critical"
+  // reads as visually distinct from "hurt".
+  updateLowHp(p) {
+    if (!this.lowHpVignette) return;
+    const pct = (p.health / p.maxHealth) * 100;
+    if (p.dead || pct >= 30) {
+      this.lowHpVignette.classList.remove('shown', 'critical');
+      return;
+    }
+    this.lowHpVignette.classList.add('shown');
+    this.lowHpVignette.classList.toggle('critical', pct < 15);
+  }
+
+  // "1 KILL FROM <REWARD>!" toast when streak is exactly one below a threshold.
+  // Pulls from the KILLSTREAKS thresholds defined in game.js — we keep our own
+  // copy of the labels to avoid a circular import.
+  updateStreakTeaser(p) {
+    if (!this.streakTeaser) return;
+    if (p.dead) {
+      this.streakTeaser.classList.remove('shown');
+      this._lastTeaserText = null;
+      return;
+    }
+    const KS = [
+      [3,  'PULSE'],
+      [4,  'AIRDROP'],
+      [5,  'RESUPPLY'],
+      [7,  'TATER STORM'],
+      [10, 'MASH MODE'],
+      [15, 'GOLDEN SPUD'],
+      [20, 'LEGENDARY'],
+    ];
+    const next = KS.find(([n]) => p.streak === n - 1);
+    if (!next) {
+      this.streakTeaser.classList.remove('shown');
+      this._lastTeaserText = null;
+      return;
+    }
+    const txt = `1 KILL FROM ${next[1]}!`;
+    if (txt !== this._lastTeaserText) {
+      this.streakTeaser.textContent = txt;
+      this._lastTeaserText = txt;
+    }
+    this.streakTeaser.classList.add('shown');
+  }
+
+  // Headshot-kill banner is triggered externally by player/projectile code
+  // calling hud.flashHeadshotKill(). Auto-hides after a short window.
+  updateHeadshotBanner() {
+    if (!this.headshotBanner) return;
+    if (this._headshotBannerTimer > 0) {
+      this._headshotBannerTimer -= 1 / 60;     // approx 60Hz tick
+      if (this._headshotBannerTimer <= 0) {
+        this.headshotBanner.classList.remove('shown');
+      }
+    }
+  }
+
+  // Public hook called from the projectile/player on a headshot-killing blow.
+  flashHeadshotKill() {
+    if (!this.headshotBanner) return;
+    this.headshotBanner.classList.add('shown');
+    this._headshotBannerTimer = 0.85;
   }
 
   // Reuse a pool of nametag divs, one per visible bot. Names hide if the bot
