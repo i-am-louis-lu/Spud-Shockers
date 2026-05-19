@@ -240,8 +240,15 @@ export class Projectile {
       this.game.spawnDamageNumber(entity.position, dmg, kind);
       // Hit-stop: a tiny pause on confirmed kill so the brain registers the moment.
       // Skipped for the multi-kill threshold which already does its own slow-mo.
+      // Headshot KILLS get a longer freeze (the "one-tap" dopamine moment) plus
+      // a centered banner — distinguishes precision skill from a body-shot kill.
       if (killed && (this.game.player.multiKill || 1) < 5) {
-        this.game.triggerSlowMo(0.18, 0.07);
+        if (isHeadshot) {
+          this.game.triggerSlowMo(0.14, 0.18);
+          if (this.game.hud?.flashHeadshotKill) this.game.hud.flashHeadshotKill();
+        } else {
+          this.game.triggerSlowMo(0.18, 0.07);
+        }
       }
       // Track shot accuracy — first projectile of a fire() counts as a hit on the trigger pull
       const player = this.game.player;
