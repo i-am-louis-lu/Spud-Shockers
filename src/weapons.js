@@ -181,6 +181,8 @@ export const WEAPONS = {
     recoilRecover: 3.5,    // was 5 — long re-settle after each shot
     kickAmt: 0.52,         // was 0.34 — viewmodel pumps back
     shakeAmt: 0.18,        // was 0.0 — now adds camera shake too
+    // Sniper — zero falloff (one-shot weapon, range is the entire point)
+    falloff: { start: 200, end: 220, min: 1.0 },
   },
   tossor: {
     name: 'Tater Tosser',
