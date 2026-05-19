@@ -1044,10 +1044,15 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       if (e.code === 'Digit3') this.switchWeapon(this.loadout[2]);
       if (e.code === 'KeyR') this.reload();
       if (e.code === 'F2') {
-        // Screenshot — saves a PNG of the current canvas.
+        // Screenshot — saves a PNG of the current canvas. We render one extra
+        // frame synchronously so the drawing buffer is guaranteed populated:
+        // without preserveDrawingBuffer, the buffer is cleared after each
+        // composite, so a toBlob() that races the compositor returns blank.
         e.preventDefault();
-        const canvas = this.game.renderer?.domElement;
-        if (canvas) {
+        const r = this.game.renderer;
+        const canvas = r?.domElement;
+        if (r && canvas) {
+          try { r.render(this.game.scene, this.game.camera); } catch (_) {}
           canvas.toBlob((blob) => {
             if (!blob) return;
             const a = document.createElement('a');
