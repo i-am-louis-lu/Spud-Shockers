@@ -2205,6 +2205,7 @@ export class Bot {
         impactExplode: !!w.impactExplode,
         fuse: w.fuse,
         color: w.projectileColor,
+        falloff: w.falloff,
       });
     }
   }
