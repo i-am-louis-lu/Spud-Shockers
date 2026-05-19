@@ -261,6 +261,11 @@ export class Game {
     // end card. We snapshot each bot at death-time and merge those rows into
     // the match-end leaderboard so AI contributions actually surface.
     this.deadBotRoster = [];
+    // Per-team respawn queue. When a bot dies, their identity (name + kills +
+    // skill + archetype) is pushed here. When spawnBot creates a new bot for
+    // the same team, it pops one and inherits — so the same "player" keeps
+    // their score across deaths instead of disappearing from the leaderboard.
+    this._respawnQueue = { mash: [], russet: [] };
     this.botSpawnTimer = 1.5;
     this.maxBots = 39; // 20 per team (1 player + 19 mash bots vs 20 russet bots)
 
