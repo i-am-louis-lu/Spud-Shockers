@@ -2613,6 +2613,9 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       this.health = 0;
       this.dead = true;
       this.streak = 0;
+      // Achievement chains reset on death — earned them, then lost momentum.
+      this._hsKillStreak = 0;
+      this._hitStreak = 0;
       if (this.game.sfx && this.game.sfx.potatoDeath) this.game.sfx.potatoDeath();
       // Tag the killer for revenge bonus next kill
       if (attacker && typeof attacker === 'object' && !attacker.dead) {
