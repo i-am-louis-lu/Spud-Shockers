@@ -405,9 +405,13 @@ export class Game {
     const { loadGlbMap } = await import('./glbmap.js');
     let map;
     try {
+      console.log('[glbmap] loading', url);
       map = await loadGlbMap(url, opts);
+      const b = map.bounds;
+      const sz = b.getSize(new THREE.Vector3());
+      console.log('[glbmap] loaded — size (x,y,z) =', sz.x.toFixed(1), sz.y.toFixed(1), sz.z.toFixed(1), 'meters, obstacles =', map.obstacles.length, 'spawns m/r =', map.spawns.mash.length, '/', map.spawns.russet.length);
     } catch (err) {
-      console.warn('[glbmap] failed to load', url, err);
+      console.error('[glbmap] failed to load', url, err);
       return false;
     }
     // Wipe procedural buildings + their AABBs. Anything added through
