@@ -66,6 +66,7 @@ export const WEAPONS = {
     // sigmoid curve. T-pattern (up-then-right). Reset when trigger released
     // for ≥0.18s. Indexed by consecutive shot count.
     sprayPattern: 'tShape',
+    canZoom: true,        // CS-style red-dot ADS
   },
   hashbrowner: {
     name: 'Hashbrowner',
