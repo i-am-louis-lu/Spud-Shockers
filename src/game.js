@@ -1315,8 +1315,21 @@ export class Game {
   }
 
   bumpCombo() {
-    this.combo = Math.min(20, (this.combo || 0) + 1);
+    const prev = this.combo || 0;
+    this.combo = Math.min(20, prev + 1);
     this.comboTimer = 1.6;
+    // Escalating combo chimes — every 2 stacks past 3 we play a brighter beep
+    // so the player audibly feels the chain growing. SFX rate-limited by tier
+    // so a sustained beam isn't spamming the bank.
+    if (this.sfx && this.combo > prev) {
+      if (this.combo === 3)       this.sfx.beep(880,  0.06, 'square', 0.30, 1320);
+      else if (this.combo === 5)  this.sfx.beep(1100, 0.07, 'square', 0.32, 1650);
+      else if (this.combo === 7)  this.sfx.beep(1320, 0.08, 'square', 0.34, 1980);
+      else if (this.combo === 10) {
+        this.sfx.beep(1760, 0.09, 'square', 0.38, 2350);
+        setTimeout(() => this.sfx && this.sfx.beep(2200, 0.10, 'square', 0.38, 2640), 70);
+      }
+    }
   }
 
   comboMultiplier() {
