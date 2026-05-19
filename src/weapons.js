@@ -57,6 +57,12 @@ export const WEAPONS = {
     recoilRecover: 6.5,     // was 7 — recovers a bit slower
     kickAmt: 0.12,          // was 0.07 — viewmodel shoves harder
     shakeAmt: 0.060,        // was 0.035 — camera judder per shot
+    // AR — strong out to medium-long, mild taper past 45m
+    falloff: { start: 45, end: 90, min: 0.65 },
+    // Spray pattern — first 3 shots are tight, then climbs in a learnable
+    // sigmoid curve. T-pattern (up-then-right). Reset when trigger released
+    // for ≥0.18s. Indexed by consecutive shot count.
+    sprayPattern: 'tShape',
   },
   hashbrowner: {
     name: 'Hashbrowner',
