@@ -262,7 +262,7 @@ export class Game {
     // the match-end leaderboard so AI contributions actually surface.
     this.deadBotRoster = [];
     this.botSpawnTimer = 1.5;
-    this.maxBots = 29; // 15 per team (1 player + 14 mash bots vs 15 russet bots)
+    this.maxBots = 39; // 20 per team (1 player + 19 mash bots vs 20 russet bots)
 
     // Shared per-team intel: enemy_id -> { pos, time }. Bots with LOS write
     // their target's position; teammates read it for coordinated attacks
