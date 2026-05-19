@@ -130,6 +130,17 @@
         <label for="player-name-input">NAME</label>
         <input id="player-name-input" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="SpudLord">
       </div>
+      <div class="picker-label">MAP</div>
+      <div id="map-picker" class="map-picker">
+        <button class="map-btn active" data-map="classic" type="button">CLASSIC ARENA</button>
+        <button class="map-btn" data-map="custom" type="button">YOUR VOXEL MAP</button>
+        <div class="map-hint">
+          Build a map in <b>MagicaVoxel</b> (free), save as <code>maps/custom.vox</code>,
+          pick "YOUR VOXEL MAP" above. Paint with palette slot
+          <b>255 = MASH spawn</b>, <b>254 = RUSSET spawn</b>, <b>253 = pickup</b>.
+          These voxels don't render — they're just markers.
+        </div>
+      </div>
       <div class="picker-label">PICK YOUR WEAPON</div>
       <div id="start-weapon-picker" class="weapon-picker"></div>
       <div class="controls">
