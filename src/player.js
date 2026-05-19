@@ -2374,6 +2374,10 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
 
   fire(overrides = {}) {
     const w = WEAPONS[this.currentWeapon];
+    // DEAD-EYE chain reset — if the previous trigger pull is still "pending"
+    // (i.e., no projectile from it ever landed), the chain is broken before
+    // we set the flag for this new pull.
+    if (this._shotPendingHit) this._hitStreak = 0;
     if (this.matchStats) this.matchStats.shotsFired++;
     this._shotPendingHit = true;
     // Shot SFX — tossor (grenade launcher) uses the dedicated grenade sample;
