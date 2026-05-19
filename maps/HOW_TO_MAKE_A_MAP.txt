@@ -1,0 +1,83 @@
+==========================================================================
+  SPUD SHOCKERS — How to make your own map with MagicaVoxel
+==========================================================================
+
+WHAT YOU NEED
+-------------
+1. MagicaVoxel — free, ~2MB. Download:
+   https://ephtracy.github.io/
+   (Windows: download the .zip, unzip, run MagicaVoxel.exe)
+
+2. About 30 minutes of voxel painting. It's like Lego.
+
+
+STEP-BY-STEP
+------------
+1. Open MagicaVoxel. You'll see a 126x126x126 voxel workspace.
+   Each voxel = 0.5 meters in Spud Shockers. So 126 voxels = 63m wide.
+   A typical structure is 10-30 voxels.
+
+2. Paint your map. Standard MagicaVoxel controls:
+   - Left click on a voxel = paint
+   - Right click on a voxel = erase
+   - Number keys 1-7 = brush type (single, box, line, etc.)
+   - Tab = switch between the model and palette/tools panel
+   - Tutorial videos: search "MagicaVoxel tutorial" on YouTube
+
+3. Place SPAWN MARKERS. These are special voxels that don't render in
+   game — they tell Spud Shockers where each team spawns.
+
+   - PALETTE SLOT 255 (top-right of palette) = MASH team spawn
+   - PALETTE SLOT 254                          = RUSSET team spawn
+   - PALETTE SLOT 253                          = pickup spawn (ammo/health)
+
+   Paint a single voxel at each spawn location using these palette slots.
+   You can place 3-6 mash spawns and 3-6 russet spawns scattered across
+   each team's side of the map. The game picks one at random per respawn.
+
+   IMPORTANT: avoid using palette slots 253-255 for regular voxels — the
+   game will treat them as invisible markers.
+
+4. Save your file. File menu > Save As > pick the folder:
+       C:\Users\zizha\Downloads\spud-shockers\maps\
+   File name: custom.vox
+
+5. Refresh the game (http://localhost:8000/).
+   On the start screen, click "YOUR VOXEL MAP" instead of "CLASSIC ARENA".
+   Click START MASHING. Your map loads.
+
+
+TIPS
+----
+* Build floors/ground at z=0 to z=2 voxels.
+* Walls 4-6 voxels tall = good cover (player is ~3 voxels tall at 0.5m
+  per voxel).
+* Stairs/ramps: just stack voxels in a stepped pattern — players will
+  automatically step up.
+* DON'T enclose the map with a roof — sunlight + shadows look bad
+  trapped indoors.
+* The classic arena's perimeter wall + ground are still active behind
+  your map, so you don't have to build the edges yourself.
+
+
+PERFORMANCE
+-----------
+* Map size 30x30x10 voxels (1500 solid) = smooth
+* Map size 80x80x20 voxels (~30k solid)  = expect some lag
+* If lag, reduce map size or skip thin details that produce many tiny
+  AABB collision boxes.
+
+
+COMMON ERRORS
+-------------
+"Could not load maps/custom.vox"
+  → File missing or not named exactly "custom.vox". Double-check the
+    filename and folder.
+
+"Map loaded but I fall through the floor"
+  → Your voxels are too high above z=0. Move them down in MagicaVoxel
+    so the bottom layer sits at z=0.
+
+"Spawns don't work"
+  → Forgot to use palette slots 254/255, or only put markers on one
+    team's side.
