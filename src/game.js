@@ -444,6 +444,14 @@ export class Game {
     // Drop the fog too — it was tuned for the procedural map's 110m range
     // and would hide most of a GLB map at a different scale.
     if (this.scene.fog) this.scene.fog = null;
+    // Safety floor — invisible AABB obstacle at y=0 covering 500×500m so
+    // the player always has solid ground regardless of what the GLB ships
+    // with (some maps have only walls + structures, no real floor; others
+    // have a skybox-thin "ground" plane that glbmap.js filters out of
+    // obstacles to avoid awkward "standing on the painted sky" feel).
+    this.arena.obstacles.push({
+      x: -250, y: -1, z: -250, w: 500, h: 1, d: 500,
+    });
     // Add the new GLB
     this.scene.add(map.root);
     for (const o of map.obstacles) this.arena.obstacles.push(o);
