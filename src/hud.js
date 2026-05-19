@@ -144,6 +144,15 @@ export class HUD {
     // Pool of reusable nametag divs keyed by entity id ('bot_<n>' or 'player')
     this.nametags = new Map();
     this._lastMomentum = null;
+    // Minimap canvas + cached 2D context. Drawing happens on every HUD tick
+    // (~60 FPS), so we keep the context handle warm rather than re-querying.
+    this.minimapCanvas = document.getElementById('minimap-canvas');
+    this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
+    this.lowHpVignette = document.getElementById('lowhp-vignette');
+    this.streakTeaser = document.getElementById('streak-teaser');
+    this.headshotBanner = document.getElementById('headshot-banner');
+    this._lastTeaserText = null;
+    this._headshotBannerTimer = 0;
     this.buildWeaponList();
   }
 
