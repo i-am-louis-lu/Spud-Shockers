@@ -1070,6 +1070,31 @@ html, body { overflow: hidden; background: #000; font-family: 'Courier New', mon
   50%      { text-shadow: 0 0 14px #fff5a0, 0 0 22px #ff8a3c; }
 }
 
+/* ============ Map picker (start screen) ============ */
+.map-picker { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-bottom: 12px; }
+.map-btn {
+  padding: 6px 14px;
+  background: #2a1a0a;
+  color: #ffce5e;
+  border: 2px solid #c47a3d;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 1.5px;
+  font-weight: bold;
+  font-size: 13px;
+}
+.map-btn:hover { background: #3a2a1a; }
+.map-btn.active { background: #c47a3d; color: #1a0e04; }
+.map-error {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 11px;
+  color: #ff5e3a;
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
 /* ============ Score bump ============ */
 /* When a team's kill count ticks up, the number scales + glows briefly. */
 .score-bumped {
