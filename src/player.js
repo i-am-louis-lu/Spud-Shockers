@@ -2412,11 +2412,22 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
         const kind = bestTarget.dead ? 'kill' : 'crit';
         this.game.spawnDamageNumber(bestTarget.position, dmg, kind);
       }
-      // Knife landed — wet-thud impact, plus death splat if it killed them
+      // Knife landed — wet-thud impact, plus death splat if it killed them.
+      // Hitstop on lethal stab: brief 90ms slow-down sells the impact's weight
+      // (a fighting-game / Doom-style "stutter" that reads as the blade
+      // catching). Non-lethal hits skip the freeze so combat stays fluid.
       if (this.game.sfx) {
         this.game.sfx.bulletImpactAt(this.position.distanceTo(bestTarget.position));
         if (wasAlive && bestTarget.dead) {
           this.game.sfx.potatoDeathAt(this.position.distanceTo(bestTarget.position));
+          if (this.game.triggerSlowMo) this.game.triggerSlowMo(0.12, 0.09);
+          // Camera kick — the blade meets resistance, then snaps free
+          this.shakeTime = Math.max(this.shakeTime, 0.18);
+          this.shakeAmt  = Math.max(this.shakeAmt,  0.12);
+        } else if (wasAlive) {
+          // Small thump even on a non-lethal stab so you feel the connect
+          this.shakeTime = Math.max(this.shakeTime, 0.10);
+          this.shakeAmt  = Math.max(this.shakeAmt,  0.06);
         }
       }
     }
