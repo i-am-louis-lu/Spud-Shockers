@@ -170,12 +170,13 @@ class HitBurst {
   kill() {
     if (this.dead) return;
     this.dead = true;
+    // Geometries are shared module-level instances — DON'T dispose them or
+    // the next burst would render invisible particles. Only the per-instance
+    // materials need cleanup.
     for (const m of this.parts) {
-      m.geometry.dispose();
       m.material.dispose();
     }
     if (this.flash) {
-      this.flash.geometry.dispose();
       this.flash.material.dispose();
     }
     this.group.parent?.remove(this.group);
