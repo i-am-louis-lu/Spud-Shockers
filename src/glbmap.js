@@ -189,23 +189,28 @@ export async function loadGlbMap(url, opts = {}) {
   });
 
   // If the map didn't ship with named spawn markers, fall back to a sensible
-  // default: spots at each end of the map (north + south side along Z). Use
-  // the visible-mesh bbox so spawns land on actual playable terrain, not at
-  // the extents of an outlier-inflated full-scene bbox.
+  // default: drop spawns from ABOVE the map's highest point at each end. The
+  // player's gravity catches them on the highest solid surface (the rooftop
+  // or the floor — whichever's there). This is robust to arbitrary author
+  // styles: maps with basements still spawn you above ground, not in the
+  // basement; maps with thin floors still get a player who lands on them.
   if (spawns.mash.length === 0 || spawns.russet.length === 0) {
     const mapBox = visBox.isEmpty() ? new THREE.Box3().setFromObject(root) : visBox;
     const mapMin = mapBox.min, mapMax = mapBox.max;
     const midX = (mapMin.x + mapMax.x) / 2;
     const padZ = 6;
-    const yFloor = mapMin.y + 1.0;
+    // Place spawns 1.5m above the map's highest visible point. Player falls,
+    // lands on whatever's solid below. Less precise than per-spawn floor
+    // detection but rock-solid for any reasonable map.
+    const yDrop = mapMax.y + 1.5;
     if (spawns.mash.length === 0) {
       for (let i = -1; i <= 1; i++) {
-        spawns.mash.push({ x: midX + i * 6, y: yFloor, z: mapMax.z - padZ });
+        spawns.mash.push({ x: midX + i * 6, y: yDrop, z: mapMax.z - padZ });
       }
     }
     if (spawns.russet.length === 0) {
       for (let i = -1; i <= 1; i++) {
-        spawns.russet.push({ x: midX + i * 6, y: yFloor, z: mapMin.z + padZ });
+        spawns.russet.push({ x: midX + i * 6, y: yDrop, z: mapMin.z + padZ });
       }
     }
   }
