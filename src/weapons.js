@@ -222,6 +222,7 @@ export const WEAPONS = {
     recoilRecover: 6,
     kickAmt: 0.16,
     shakeAmt: 0.07,
+    canZoom: false,        // grenades fire hip-only in CS
   },
   knife: {
     name: 'Spud Knife',
