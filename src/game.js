@@ -127,8 +127,9 @@ class HitBurst {
       this.parts.push(m);
     }
     // Big additive flash sprite at the impact point — sells the "hit" instantly
-    // even from a distance. Fades out faster than the chunks.
-    const flashGeo = new THREE.PlaneGeometry(1.2, 1.2);
+    // even from a distance. Fades out faster than the chunks. Geometry is
+    // shared across all bursts; material is per-instance because each fades
+    // its own opacity.
     const flashMat = new THREE.MeshBasicMaterial({
       color: isCrit ? 0xffa050 : 0xfff0a0,
       transparent: true,
@@ -136,7 +137,7 @@ class HitBurst {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
-    this.flash = new THREE.Mesh(flashGeo, flashMat);
+    this.flash = new THREE.Mesh(_hitFlashGeo, flashMat);
     // Billboard once toward the player — it's short-lived enough to skip
     // per-frame relookat.
     if (game.player) this.flash.lookAt(game.player.position);
