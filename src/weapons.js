@@ -190,6 +190,7 @@ export const WEAPONS = {
     shakeAmt: 0.18,        // was 0.0 — now adds camera shake too
     // Sniper — zero falloff (one-shot weapon, range is the entire point)
     falloff: { start: 200, end: 220, min: 1.0 },
+    canZoom: true,         // scoped — full screen zoom overlay
   },
   tossor: {
     name: 'Tater Tosser',
