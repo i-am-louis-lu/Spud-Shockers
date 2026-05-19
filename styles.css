@@ -1070,6 +1070,17 @@ html, body { overflow: hidden; background: #000; font-family: 'Courier New', mon
   50%      { text-shadow: 0 0 14px #fff5a0, 0 0 22px #ff8a3c; }
 }
 
+/* ============ Score bump ============ */
+/* When a team's kill count ticks up, the number scales + glows briefly. */
+.score-bumped {
+  animation: score-bump 0.45s cubic-bezier(.18,.95,.27,1.4);
+}
+@keyframes score-bump {
+  0%   { transform: scale(1);    text-shadow: none; }
+  35%  { transform: scale(1.45); text-shadow: 0 0 12px currentColor, 0 0 22px currentColor; }
+  100% { transform: scale(1);    text-shadow: none; }
+}
+
 /* ============ Headshot finisher banner ============ */
 /* Brief centered banner on a headshot KILL — distinct from a regular kill */
 #headshot-banner {
