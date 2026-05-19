@@ -159,6 +159,7 @@ export const WEAPONS = {
     shakeAmt: 0.055,       // was 0.022 — sustained judder
     falloff: { start: 60, end: 110, min: 0.55 },
     sprayPattern: 'figure8',
+    canZoom: false,       // MG/SMG class — no zoom in CS
   },
   boomstick: {
     name: 'Boomstick',
