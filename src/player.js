@@ -2101,6 +2101,36 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     } else {
       if (this.reloadMag.visible) this.reloadMag.visible = false;
     }
+    // --- Inspect animation (press I) ---
+    // 3-phase choreography over INSPECT_DUR seconds:
+    //   0.00–0.20  lift + tilt — gun rotates toward camera as if held up for review
+    //   0.20–0.80  full barrel-roll — Z spin shows the gun's silhouette from all sides
+    //   0.80–1.00  ease back to neutral
+    // Layered ON TOP of the per-frame bob/kick pose so it composes cleanly.
+    if (this._inspectTimer > 0) {
+      this._inspectTimer = Math.max(0, this._inspectTimer - dt);
+      const p = 1 - this._inspectTimer / 1.4;
+      let liftX = 0, liftY = 0, pullZ = 0, spinZ = 0;
+      const HOLD_X = -0.55, HOLD_Y = -0.10, HOLD_Z = 0.10;
+      if (p < 0.20) {
+        const k = p / 0.20;
+        const e = k * k;
+        liftX = HOLD_X * e; liftY = HOLD_Y * e; pullZ = HOLD_Z * e;
+      } else if (p < 0.80) {
+        const k = (p - 0.20) / 0.60;
+        liftX = HOLD_X; liftY = HOLD_Y; pullZ = HOLD_Z;
+        spinZ = k * Math.PI * 2;        // one full barrel-roll
+      } else {
+        const k = (p - 0.80) / 0.20;
+        const e = 1 - Math.pow(1 - k, 2);
+        liftX = HOLD_X * (1 - e); liftY = HOLD_Y * (1 - e); pullZ = HOLD_Z * (1 - e);
+        spinZ = Math.PI * 2 * (1 - e);
+      }
+      vmRotX += liftX;
+      vmRotZ += spinZ;
+      vmY    += liftY;
+      vmZ    += pullZ;
+    }
     this.viewmodel.position.set(vmX, vmY, vmZ);
     this.gunMesh.position.x = THREE.MathUtils.lerp(0.32, 0.0, this.adsAmount);
     this.gunMesh.position.y = THREE.MathUtils.lerp(-0.28, -0.18, this.adsAmount);
