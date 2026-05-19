@@ -2398,14 +2398,52 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       this.specialMod = null;
     }
 
+    // Spray-pattern lookup. If too long since the last shot, the burst counter
+    // resets so a tap shoots from index 0 again (CS-style trigger discipline).
+    // Bursts (Sizzle Burst / Quick Fire) are explicitly excluded so the
+    // pre-planned shot count of the special doesn't accumulate spray climb
+    // — the special always fires cleanly.
+    const now = performance.now() / 1000;
+    if (this._sprayLastShotAt == null || (now - this._sprayLastShotAt) > SPRAY_RESET_S) {
+      this._sprayCount = 0;
+    }
+    this._sprayLastShotAt = now;
+    const pattern = (w.sprayPattern && !this.specialQueue) ? SPRAY_PATTERNS[w.sprayPattern] : null;
+    let sprayDx = 0, sprayDy = 0;
+    if (pattern) {
+      const idx = Math.min(this._sprayCount, pattern.length - 1);
+      sprayDx = pattern[idx].dx;
+      sprayDy = pattern[idx].dy;
+      // ADS halves the spray pattern — tight-aim should reward.
+      if (this.ads) { sprayDx *= 0.5; sprayDy *= 0.5; }
+    }
+    this._sprayCount++;
+    // Local right/up vectors in world-space for the player's current aim,
+    // so the spray offsets apply as on-screen horizontal/vertical kick
+    // regardless of where the player is looking.
+    const upX = Math.sin(aimYaw) * Math.sin(aimPitch);
+    const upY = Math.cos(aimPitch);
+    const upZ = Math.cos(aimYaw) * Math.sin(aimPitch);
+    const rightX = -Math.cos(aimYaw);
+    const rightZ = Math.sin(aimYaw);
+    // When a deterministic pattern is active, scale the random scatter down
+    // so the LEARNABLE part dominates. Without a pattern, scatter is full.
+    const scatterMult = pattern ? 0.35 : 1.0;
+
     for (let i = 0; i < pellets; i++) {
       const d = dir.clone();
-      if (spread > 0) {
-        d.x += (Math.random() - 0.5) * spread * 2;
-        d.y += (Math.random() - 0.5) * spread * 2;
-        d.z += (Math.random() - 0.5) * spread * 2;
-        d.normalize();
+      if (sprayDx !== 0 || sprayDy !== 0) {
+        d.x += sprayDx * rightX + sprayDy * upX;
+        d.y +=                     sprayDy * upY;
+        d.z += sprayDx * rightZ + sprayDy * upZ;
       }
+      if (spread > 0) {
+        const s = spread * scatterMult;
+        d.x += (Math.random() - 0.5) * s * 2;
+        d.y += (Math.random() - 0.5) * s * 2;
+        d.z += (Math.random() - 0.5) * s * 2;
+      }
+      d.normalize();
       this.game.spawnProjectile({
         ownerEntity: 'player',
         ownerTeam: this.team,
