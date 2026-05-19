@@ -190,11 +190,26 @@ export class Projectile {
     }
     // Headshot: projectile y is in upper third of entity
     const isHeadshot = (this.position.y - entity.position.y) > 0.45;
+    // Leg/foot shot — lower third of the body. Adds a third hit zone in
+    // addition to head/torso. CS2-style limb-penalty: 0.75× damage.
+    const isLegShot = !isHeadshot && (this.position.y - entity.position.y) < -0.45;
     let dmg = this.damage;
     const ownerIsPlayer = this.ownerEntity === 'player' || this.ownerEntity === this.game.player;
     if (isHeadshot) dmg *= 1.5;
+    else if (isLegShot) dmg *= 0.75;
     // Frenzy "headhunter" doubles headshot damage further
     if (isHeadshot && this.game.frenzy?.id === 'headhunter') dmg *= 2.0;
+    // Distance falloff — applied AFTER zone multipliers so a long-range
+    // headshot still gets the 1.5× but a long-range torso shot fades.
+    if (this.falloff) {
+      const d = this.position.distanceTo(this.startPos);
+      const { start, end, min } = this.falloff;
+      if (d > start) {
+        const t = Math.min(1, (d - start) / Math.max(0.001, end - start));
+        const mult = 1 + (min - 1) * t;
+        dmg *= mult;
+      }
+    }
     // Player combo multiplier
     if (ownerIsPlayer) {
       dmg *= this.game.comboMultiplier();
