@@ -84,6 +84,15 @@ class Floater {
 // Short-lived burst of spud-chunk particles at a hit point. Cheap: a single
 // InstancedMesh isn't worth the bookkeeping for ~10 particles, so we just use
 // plain Meshes that animate position + opacity and remove themselves.
+//
+// Geometries are shared across ALL bursts — Windows WebGL drivers stall on
+// GPU buffer churn, and 16-24 fresh BoxGeometries per hit was the dominant
+// per-frame allocation. Materials still get cloned because each particle
+// fades its own opacity, but Three.js material clones share the underlying
+// shader program so they're far cheaper than geometry clones.
+const _hitGeoBig   = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+const _hitGeoSmall = new THREE.BoxGeometry(0.10, 0.10, 0.10);
+const _hitFlashGeo = new THREE.PlaneGeometry(1.2, 1.2);
 class HitBurst {
   constructor(game, worldPos, isCrit) {
     this.game = game;
@@ -98,8 +107,7 @@ class HitBurst {
     // Mix two sizes so the burst reads as a chunky explosion, not uniform dust.
     for (let i = 0; i < count; i++) {
       const big = Math.random() < 0.35;
-      const s = big ? 0.16 : 0.10;
-      const geo = new THREE.BoxGeometry(s, s, s);
+      const geo = big ? _hitGeoBig : _hitGeoSmall;
       const mat = new THREE.MeshBasicMaterial({ color: baseColor, transparent: true });
       const m = new THREE.Mesh(geo, mat);
       const theta = Math.random() * Math.PI * 2;
