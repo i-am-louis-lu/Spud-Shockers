@@ -2360,6 +2360,7 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
         impactExplode: !!w.impactExplode,
         fuse: w.fuse,
         color: w.projectileColor,
+        falloff: w.falloff,
       });
     }
     // apply recoil — ADS reduces it
