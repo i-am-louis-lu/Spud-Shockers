@@ -1230,6 +1230,11 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     this.specialMod = null;
     this.specialQueue = null;
     this.hotBarrelTimer = 0;
+    // Cancel any in-flight knife-swing / stab so its leftover transform on
+    // gunHolder + its leftover stab-mixer state can't bleed into the new gun.
+    this._knifeSwing = 0;
+    this._fpsArmsStabActive = false;
+    this._fpsArmsStabTimer = 0;
     this.currentWeapon = name;
     if (!this.ammo[name]) {
       this.ammo[name] = { mag: WEAPONS[name].magSize, reserve: WEAPONS[name].reserve };
