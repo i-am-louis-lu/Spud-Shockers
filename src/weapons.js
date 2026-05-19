@@ -97,6 +97,7 @@ export const WEAPONS = {
     shakeAmt: 0.10,
     // Pump shotgun — savage close, near-useless past 14m
     falloff: { start: 6, end: 18, min: 0.18 },
+    canZoom: false,       // shotguns don't zoom in CS
   },
   masher: {
     name: 'Masher',
