@@ -137,10 +137,28 @@ export async function loadGlbMap(url, opts = {}) {
     });
   });
 
+  // "Visible-mesh bbox" — built from non-outlier meshes only. Used to size
+  // default spawn placement so spawns sit at the edges of the ACTUAL map
+  // geometry, not at the extents of a bbox that's been inflated by stray
+  // helper/empty nodes.
+  const visBox = new THREE.Box3();
+  visBox.makeEmpty();
+  const tmpBoxB = new THREE.Box3();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    tmpBoxB.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+    const sz = tmpBoxB.getSize(new THREE.Vector3());
+    if (sz.x > 1000 || sz.y > 1000 || sz.z > 1000) return;
+    visBox.union(tmpBoxB);
+  });
+
   // If the map didn't ship with named spawn markers, fall back to a sensible
-  // default: 4 spots at each end of the map (north + south side along Z).
+  // default: spots at each end of the map (north + south side along Z). Use
+  // the visible-mesh bbox so spawns land on actual playable terrain, not at
+  // the extents of an outlier-inflated full-scene bbox.
   if (spawns.mash.length === 0 || spawns.russet.length === 0) {
-    const mapBox = new THREE.Box3().setFromObject(root);
+    const mapBox = visBox.isEmpty() ? new THREE.Box3().setFromObject(root) : visBox;
     const mapMin = mapBox.min, mapMax = mapBox.max;
     const midX = (mapMin.x + mapMax.x) / 2;
     const padZ = 6;
