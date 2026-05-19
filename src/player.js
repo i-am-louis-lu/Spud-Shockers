@@ -1329,6 +1329,9 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
     this._knifeSwing = 0;
     this._fpsArmsStabActive = false;
     this._fpsArmsStabTimer = 0;
+    // If the new weapon can't zoom, drop any in-flight ADS (e.g. you were
+    // scoped with the sniper, then switched to the shotgun while holding RMB).
+    if (!WEAPONS[name]?.canZoom) this.ads = false;
     this.currentWeapon = name;
     if (!this.ammo[name]) {
       this.ammo[name] = { mag: WEAPONS[name].magSize, reserve: WEAPONS[name].reserve };
