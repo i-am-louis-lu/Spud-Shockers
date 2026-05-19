@@ -188,32 +188,56 @@ export async function loadGlbMap(url, opts = {}) {
     visBox.union(tmpBoxB);
   });
 
-  // If the map didn't ship with named spawn markers, fall back to a sensible
-  // default: drop spawns from ABOVE the map's highest point at each end. The
-  // player's gravity catches them on the highest solid surface (the rooftop
-  // or the floor — whichever's there). This is robust to arbitrary author
-  // styles: maps with basements still spawn you above ground, not in the
-  // basement; maps with thin floors still get a player who lands on them.
+  // If the map didn't ship with named spawn markers, fall back to a smart
+  // default: find the SINGLE LARGEST horizontal mesh (the floor — almost
+  // always the dominant flat surface in any FPS map) and spawn players on
+  // its top surface, clustered around its center. This is robust to:
+  //   - basement decorations (smaller mesh below the floor — we'd skip it)
+  //   - native model Y offsets (we use the floor mesh's actual top y)
+  //   - off-center map geometry (we use the floor mesh's actual XZ center)
   if (spawns.mash.length === 0 || spawns.russet.length === 0) {
-    const mapBox = visBox.isEmpty() ? new THREE.Box3().setFromObject(root) : visBox;
-    const mapMin = mapBox.min, mapMax = mapBox.max;
-    const midX = (mapMin.x + mapMax.x) / 2;
-    const padZ = 6;
-    // Spawn placement: drop player in the MIDDLE of the map at floor level
-    // (visBox.min.y + 1.5 m clearance). The map's own floor mesh catches
-    // them. Mash on one side of center, Russet on the other.
-    const centerX = (mapMin.x + mapMax.x) / 2;
-    const centerZ = (mapMin.z + mapMax.z) / 2;
-    const halfZ = (mapMax.z - mapMin.z) / 4;        // 1/4 of map depth from center
-    const yFloor = mapMin.y + 1.5;
-    if (spawns.mash.length === 0) {
-      for (let i = -1; i <= 1; i++) {
-        spawns.mash.push({ x: centerX + i * 4, y: yFloor, z: centerZ + halfZ });
+    let floorBox = null;
+    let floorArea = 0;
+    const tmpBoxF = new THREE.Box3();
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      tmpBoxF.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+      const sz = tmpBoxF.getSize(new THREE.Vector3());
+      if (sz.x > 1000 || sz.z > 1000) return;     // skip skyboxes
+      const area = sz.x * sz.z;
+      if (area > floorArea) {
+        floorArea = area;
+        floorBox = tmpBoxF.clone();
       }
-    }
-    if (spawns.russet.length === 0) {
-      for (let i = -1; i <= 1; i++) {
-        spawns.russet.push({ x: centerX + i * 4, y: yFloor, z: centerZ - halfZ });
+    });
+    if (floorBox) {
+      const center = floorBox.getCenter(new THREE.Vector3());
+      const yTop = floorBox.max.y + 1.5;           // 1.5m above the floor's top surface
+      const sizeF = floorBox.getSize(new THREE.Vector3());
+      const halfZ = Math.min(sizeF.z * 0.35, 25);  // teams 35% off-center along Z, capped at 25m
+      if (spawns.mash.length === 0) {
+        for (let i = -1; i <= 1; i++) {
+          spawns.mash.push({ x: center.x + i * 4, y: yTop, z: center.z + halfZ });
+        }
+      }
+      if (spawns.russet.length === 0) {
+        for (let i = -1; i <= 1; i++) {
+          spawns.russet.push({ x: center.x + i * 4, y: yTop, z: center.z - halfZ });
+        }
+      }
+    } else {
+      // Fallback: nothing detected as floor. Drop spawns at world origin
+      // 2m up; player physics figures it out from there.
+      if (spawns.mash.length === 0) {
+        spawns.mash.push({ x:  4, y: 2, z:  10 });
+        spawns.mash.push({ x:  0, y: 2, z:  10 });
+        spawns.mash.push({ x: -4, y: 2, z:  10 });
+      }
+      if (spawns.russet.length === 0) {
+        spawns.russet.push({ x:  4, y: 2, z: -10 });
+        spawns.russet.push({ x:  0, y: 2, z: -10 });
+        spawns.russet.push({ x: -4, y: 2, z: -10 });
       }
     }
   }
