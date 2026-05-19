@@ -157,16 +157,17 @@ export async function loadGlbMap(url, opts = {}) {
     // is probably not a real obstacle — it's a backdrop).
     const size = tmpBox.getSize(new THREE.Vector3());
     if (size.x > 1000 || size.y > 1000 || size.z > 1000) return;
-    // Skip flat ground-plane meshes (very thin in Y) — they're floor, the
-    // player walks on top via the ground-collision system, not into.
-    if (size.y < 0.15) return;
+    // NOTE: we used to skip thin (height < 0.15) meshes thinking they were
+    // ground-plane backdrops, but that filtered out the actual map floor
+    // and the player fell through forever. Keep ALL non-skybox meshes as
+    // collidable obstacles; thin AABBs work as walkable platforms.
 
     obstacles.push({
       x: tmpBox.min.x + padObst,
       y: tmpBox.min.y,
       z: tmpBox.min.z + padObst,
       w: Math.max(0.01, size.x - padObst * 2),
-      h: size.y,
+      h: Math.max(0.05, size.y),
       d: Math.max(0.01, size.z - padObst * 2),
     });
   });
