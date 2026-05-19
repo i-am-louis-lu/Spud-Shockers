@@ -423,25 +423,47 @@ export class Game {
       console.error('[glbmap] failed to load', url, err);
       return false;
     }
-    // Wipe procedural buildings + their AABBs. Anything added through
-    // arena.addBox carries a `.mesh` reference; decor (trees, banners)
-    // added via addDecor doesn't and gets left in place. We then also
-    // remove the ground/perimeter visuals by clearing the entire arena
-    // scene group is overkill — keep them, the GLB sits on top.
-    for (const o of this.arena.obstacles) {
-      if (o.mesh) {
-        this.scene.remove(o.mesh);
-        if (o.mesh.geometry) o.mesh.geometry.dispose();
-        if (o.mesh.material && !Array.isArray(o.mesh.material)) o.mesh.material.dispose();
+    // Wipe EVERYTHING the procedural Arena added — meshes, ground, trees,
+    // mountains, perimeter, the lot. We captured these as a snapshot in the
+    // Game constructor (this._arenaSceneChildren) so we can remove them
+    // cleanly without touching scene-level lights or the player's viewmodel.
+    if (this._arenaSceneChildren) {
+      for (const child of this._arenaSceneChildren) {
+        this.scene.remove(child);
+        child.traverse?.((o) => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) {
+            if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+            else o.material.dispose();
+          }
+        });
       }
+      this._arenaSceneChildren = [];
     }
     this.arena.obstacles.length = 0;
+    // Drop the fog too — it was tuned for the procedural map's 110m range
+    // and would hide most of a GLB map at a different scale.
+    if (this.scene.fog) this.scene.fog = null;
+    // Add the new GLB
     this.scene.add(map.root);
     for (const o of map.obstacles) this.arena.obstacles.push(o);
     this.arena.teamSpawns.mash   = map.spawns.mash.map(  (s) => new THREE.Vector3(s.x, s.y, s.z));
     this.arena.teamSpawns.russet = map.spawns.russet.map((s) => new THREE.Vector3(s.x, s.y, s.z));
     if (map.spawnZones.mash)   this.arena.teamSpawnZones.mash   = map.spawnZones.mash;
     if (map.spawnZones.russet) this.arena.teamSpawnZones.russet = map.spawnZones.russet;
+    // Teleport the player to a fresh spawn on the new map. Player's position
+    // was set ONCE in their constructor from the procedural arena's spawns;
+    // without this, the player remains standing where the old castle used
+    // to be even though the new spawns are wherever the GLB centroid is.
+    if (this.player && !this.player.dead) {
+      const spawnList = this.arena.teamSpawns[this.player.team];
+      if (spawnList && spawnList.length > 0) {
+        const sp = spawnList[Math.floor(Math.random() * spawnList.length)];
+        // Use the same eye-height offset Player.respawn() uses (EYE_HEIGHT=1.6, sp.y is foot level - 0.85)
+        this.player.position.set(sp.x, sp.y + 1.6 - 0.85, sp.z);
+        this.player.velocity.set(0, 0, 0);
+      }
+    }
     // NavGrid samples obstacles at construction; rebuild since obstacles
     // just changed completely. Otherwise bot pathfinding routes through
     // the now-deleted procedural walls.
