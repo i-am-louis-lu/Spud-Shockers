@@ -980,6 +980,117 @@ html, body { overflow: hidden; background: #000; font-family: 'Courier New', mon
 #mp-panel #mp-join-input { width: 130px; padding: 8px; font-size: 22px; letter-spacing: 6px; background: #1a0e04; color: #ffce5e; border: 2px solid #c47a3d; text-align: center; text-transform: uppercase; font-family: inherit; font-weight: bold; }
 #mp-panel #mp-join-confirm { width: auto; padding: 8px 20px; margin-left: 8px; }
 #mp-panel .mp-hint { color: #ffce5e; opacity: 0.75; font-size: 11px; margin-top: 6px; letter-spacing: 1px; }
+
+/* ============ Minimap radar (top-right) ============ */
+/* Circular cutout so the canvas reads as a radar rather than a square HUD
+   element. The amber border + glow match the rest of the spud-shockers UI. */
+#minimap {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 2px solid #c47a3d;
+  background: rgba(10, 6, 2, 0.55);
+  box-shadow: 0 0 16px rgba(196,122,61,0.35), inset 0 0 18px rgba(0,0,0,0.65);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+#minimap-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============ Low-HP urgency vignette ============ */
+/* Pulses red from the edges inward when HP drops. Two thresholds:
+   - hp<30: gentle 1.4s pulse, mid-strength red
+   - hp<15: faster 0.7s pulse, deeper red (added via .critical class)
+   Heartbeat-ish rhythm sells the "almost dead" pressure. */
+#lowhp-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center,
+              transparent 40%,
+              rgba(180, 24, 24, 0.55) 88%,
+              rgba(180, 24, 24, 0.85) 100%);
+  z-index: 9;
+  transition: opacity 0.18s linear;
+}
+#lowhp-vignette.shown {
+  opacity: 1;
+  animation: lowhp-pulse 1.4s ease-in-out infinite;
+}
+#lowhp-vignette.critical {
+  animation-duration: 0.7s;
+  background: radial-gradient(ellipse at center,
+              transparent 30%,
+              rgba(220, 30, 30, 0.65) 80%,
+              rgba(220, 30, 30, 0.95) 100%);
+}
+@keyframes lowhp-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.95; }
+}
+
+/* ============ Streak proximity teaser ============ */
+/* Floats above the streak chip when you're 1 kill away from the next reward.
+   Pulses to draw the eye so the player feels the carrot dangling. */
+#streak-teaser {
+  position: absolute;
+  top: 86px;
+  right: 14px;
+  padding: 6px 14px;
+  background: rgba(20, 12, 4, 0.85);
+  border: 2px solid #ffd97a;
+  border-radius: 4px;
+  color: #ffd97a;
+  font-weight: bold;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 6px #ff8a3c;
+  box-shadow: 0 0 14px rgba(255,217,122,0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  z-index: 6;
+}
+#streak-teaser.shown {
+  opacity: 1;
+  transform: translateY(0);
+  animation: streak-teaser-throb 0.95s ease-in-out infinite;
+}
+@keyframes streak-teaser-throb {
+  0%, 100% { text-shadow: 0 0 6px #ff8a3c; }
+  50%      { text-shadow: 0 0 14px #fff5a0, 0 0 22px #ff8a3c; }
+}
+
+/* ============ Headshot finisher banner ============ */
+/* Brief centered banner on a headshot KILL — distinct from a regular kill */
+#headshot-banner {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  font-size: 38px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  color: #ff3a3a;
+  text-shadow: 0 0 8px #000, 0 0 18px #ff0000, 0 0 28px #ffae00;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 7;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.18,.95,.27,1.4);
+}
+#headshot-banner.shown {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
 #mp-panel #mp-connected-box .mp-label { color: #5effb8; }
 #mp-panel .mp-mode-row { display: flex; align-items: center; margin-top: 8px; gap: 6px; }
 #mp-panel #mp-mode-btn { background: #2a1a0a; color: #ffce5e; border: 2px solid #c47a3d; padding: 6px 12px; font-size: 12px; cursor: pointer; letter-spacing: 1px; font-weight: bold; font-family: inherit; border-radius: 4px; }
