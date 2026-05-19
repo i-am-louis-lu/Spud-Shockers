@@ -404,8 +404,51 @@ nameInput.addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && !startBtn.disabled) startBtn.click();
 });
 
-startBtn.addEventListener('click', () => {
+// ---- Map picker (Classic vs Custom GLB) ----
+// User clicks one of the buttons; the choice persists across reloads via
+// localStorage. On START, if 'custom' is picked we try to load the GLB map
+// before transitioning out of the start screen so failures stay visible.
+const STORE_MAP_CHOICE = 'spudshockers.mapchoice';
+let mapChoice = localStorage.getItem(STORE_MAP_CHOICE) || 'classic';
+const applyMapHighlight = () => {
+  document.querySelectorAll('#map-picker .map-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.map === mapChoice);
+  });
+};
+document.querySelectorAll('#map-picker .map-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    mapChoice = btn.dataset.map || 'classic';
+    localStorage.setItem(STORE_MAP_CHOICE, mapChoice);
+    applyMapHighlight();
+    // Clear any previous load-error message
+    const err = document.querySelector('.map-error');
+    if (err) err.remove();
+  });
+});
+applyMapHighlight();
+
+startBtn.addEventListener('click', async () => {
   commitName();
+  if (mapChoice === 'custom') {
+    startBtn.disabled = true;
+    const originalLabel = startBtn.textContent;
+    startBtn.textContent = 'LOADING MAP…';
+    const ok = await game.loadGlbMap('maps/custom.glb');
+    startBtn.disabled = false;
+    startBtn.textContent = originalLabel;
+    if (!ok) {
+      // Surface a clear error so the player isn't dumped into a broken match
+      const picker = document.getElementById('map-picker');
+      let err = picker.querySelector('.map-error');
+      if (!err) {
+        err = document.createElement('div');
+        err.className = 'map-error';
+        picker.appendChild(err);
+      }
+      err.textContent = 'Could not load maps/custom.glb — check the file is there.';
+      return;
+    }
+  }
   document.getElementById('start-screen').style.display = 'none';
   game.start();
 });
