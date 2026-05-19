@@ -151,6 +151,8 @@ export const WEAPONS = {
     recoilRecover: 5.5,    // was 7 — settles slower
     kickAmt: 0.13,         // was 0.05 — meaty shove
     shakeAmt: 0.055,       // was 0.022 — sustained judder
+    falloff: { start: 60, end: 110, min: 0.55 },
+    sprayPattern: 'figure8',
   },
   boomstick: {
     name: 'Boomstick',
