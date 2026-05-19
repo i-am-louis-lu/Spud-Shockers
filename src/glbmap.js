@@ -199,18 +199,21 @@ export async function loadGlbMap(url, opts = {}) {
     const mapMin = mapBox.min, mapMax = mapBox.max;
     const midX = (mapMin.x + mapMax.x) / 2;
     const padZ = 6;
-    // Place spawns just above y=0 (the invisible safety floor that game.js
-    // adds before mounting the GLB). The player drops onto the safety floor
-    // and walks the map at ground level.
-    const yDrop = 1.5;
+    // Spawn placement: drop player in the MIDDLE of the map at floor level
+    // (visBox.min.y + 1.5 m clearance). The map's own floor mesh catches
+    // them. Mash on one side of center, Russet on the other.
+    const centerX = (mapMin.x + mapMax.x) / 2;
+    const centerZ = (mapMin.z + mapMax.z) / 2;
+    const halfZ = (mapMax.z - mapMin.z) / 4;        // 1/4 of map depth from center
+    const yFloor = mapMin.y + 1.5;
     if (spawns.mash.length === 0) {
       for (let i = -1; i <= 1; i++) {
-        spawns.mash.push({ x: midX + i * 6, y: yDrop, z: mapMax.z - padZ });
+        spawns.mash.push({ x: centerX + i * 4, y: yFloor, z: centerZ + halfZ });
       }
     }
     if (spawns.russet.length === 0) {
       for (let i = -1; i <= 1; i++) {
-        spawns.russet.push({ x: midX + i * 6, y: yDrop, z: mapMin.z + padZ });
+        spawns.russet.push({ x: centerX + i * 4, y: yFloor, z: centerZ - halfZ });
       }
     }
   }
