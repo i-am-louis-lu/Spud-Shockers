@@ -35,17 +35,49 @@ export async function loadGlbMap(url, opts = {}) {
   root.scale.setScalar(scale);
   root.updateMatrixWorld(true);
 
-  // Compute world-space AABB of everything so we can re-center the map on
-  // the world origin and floor it to y=0. Sketchfab models often arrive
-  // off-center or below ground; this normalizes them.
-  const fullBox = new THREE.Box3().setFromObject(root);
-  const center  = fullBox.getCenter(new THREE.Vector3());
-  if (centerXZ) {
-    root.position.x -= center.x;
-    root.position.z -= center.z;
+  // Compute centering based on the WEIGHTED CENTROID of all real meshes,
+  // NOT the bounding box of the entire scene graph. Sketchfab models often
+  // ship with stray empty/helper nodes far from the geometry, which would
+  // pull the bbox center off to the side and leave the visible map floating
+  // away from the player spawn. Weighted-centroid is robust to outliers:
+  // each mesh contributes its center position weighted by its surface area
+  // (approximated from bbox size), so big floors/walls dominate the average
+  // and stray empties don't matter.
+  let totalWeight = 0;
+  const centroid = new THREE.Vector3();
+  let minY = Infinity, maxY = -Infinity;
+  const tmpV = new THREE.Vector3();
+  const tmpBoxA = new THREE.Box3();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.updateMatrixWorld(true);
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    tmpBoxA.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+    const sz = tmpBoxA.getSize(tmpV);
+    // Approximate surface-area weight; clamp to ignore skybox-sized meshes
+    // that would dominate the average.
+    if (sz.x > 1000 || sz.y > 1000 || sz.z > 1000) return;
+    const w = Math.max(0.001, sz.x * sz.z + sz.x * sz.y + sz.z * sz.y);
+    const c = tmpBoxA.getCenter(tmpV);
+    centroid.x += c.x * w;
+    centroid.y += c.y * w;
+    centroid.z += c.z * w;
+    totalWeight += w;
+    if (tmpBoxA.min.y < minY) minY = tmpBoxA.min.y;
+    if (tmpBoxA.max.y > maxY) maxY = tmpBoxA.max.y;
+  });
+  if (totalWeight > 0) {
+    centroid.divideScalar(totalWeight);
   }
-  // Floor: shift so the lowest point sits at y = yOffset
-  root.position.y += (yOffset - fullBox.min.y);
+  if (centerXZ && totalWeight > 0) {
+    root.position.x -= centroid.x;
+    root.position.z -= centroid.z;
+  }
+  // Floor: shift so the LOWEST mesh sits at y = yOffset (not the whole scene
+  // bbox, which would include stray non-mesh nodes).
+  if (isFinite(minY)) {
+    root.position.y += (yOffset - minY);
+  }
   root.updateMatrixWorld(true);
 
   // Walk the scene graph collecting AABB obstacles + named spawn points.
