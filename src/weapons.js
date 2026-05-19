@@ -25,6 +25,10 @@ export const WEAPONS = {
     recoilRecover: 9,
     kickAmt: 0.10,        // viewmodel kick-back on fire (visual)
     shakeAmt: 0.045,      // camera shake on fire
+    // Damage falloff: full damage out to `start` meters, lerp to `min` at `end`
+    // meters, then flat. Sidearm has gentle falloff — still usable at range
+    // but rifle/sniper outclass at long distances.
+    falloff: { start: 22, end: 50, min: 0.55 },
   },
   fryer: {
     name: 'Fry-er',
