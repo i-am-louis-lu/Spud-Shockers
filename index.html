@@ -65,6 +65,16 @@
       <div id="lockon-target"><div id="lockon-corners"><i></i><b></b></div><div id="lockon-info"></div></div>
       <div id="momentum-chip"></div>
       <div id="combo-meter"></div>
+      <!-- Minimap radar — top-right. Canvas-2D, north-up, player at center.
+           Enemies as red dots, allies blue, off-radar marks clamped to edge.
+           Range ~60 world units (≈ 1/3 of the arena), updated per HUD frame. -->
+      <div id="minimap">
+        <canvas id="minimap-canvas" width="180" height="180"></canvas>
+      </div>
+      <!-- Low-HP urgency overlay — pulses red when HP drops below 30 -->
+      <div id="lowhp-vignette"></div>
+      <!-- Streak proximity teaser — "1 KILL FROM PULSE!" -->
+      <div id="streak-teaser"></div>
       <div id="slide-chip" class="ready">C SLIDE</div>
       <div id="chat-input-wrap">
         <span id="chat-input-prefix">[ALL]</span>
