@@ -233,7 +233,16 @@ export class Game {
     this.scene.add(new THREE.AmbientLight(0xb8c8e0, 0.45));
     this.scene.add(new THREE.HemisphereLight(0xc8d8ff, 0x5a4a3a, 0.55));
 
+    // Snapshot scene.children BEFORE Arena builds so loadGlbMap() can later
+    // diff and remove EVERY object Arena added — ground, perimeter walls,
+    // castle keeps, watchtower, trees, mountains, fences, all of it — even
+    // the ones Arena adds via this.scene.add directly (without going through
+    // addBox, so they aren't in arena.obstacles).
+    const _preArenaChildren = this.scene.children.slice();
     this.arena = new Arena(this.scene);
+    this._arenaSceneChildren = this.scene.children.filter(
+      (c) => !_preArenaChildren.includes(c),
+    );
     this.navGrid = new NavGrid(this.arena, 1);
     this.sfx = new SFX();
     this.bgm = new BGM();
