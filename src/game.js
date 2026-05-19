@@ -189,9 +189,18 @@ export class Game {
     this.dadActive = false;
     this.dadBot = null;
     this.dadKeys = {};
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    // preserveDrawingBuffer=true forces the renderer to keep the backbuffer
+    // readable after each frame, which on Windows GPU drivers triggers an
+    // extra copy and can spike frametimes (especially when the WebGL backend
+    // is ANGLE/D3D11). We only needed it for an old screenshot path that's
+    // no longer used — Macs were quietly carrying this cost gracefully too,
+    // PCs were the ones hitting the cliff.
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Cap pixel ratio at 1.5 instead of 2 — on a 4K screen that's a 1.78× cut
+    // in pixels shaded. Visually nearly identical on UHD displays since the
+    // physical pixels are tiny; on 1080p it's a no-op (DPR is already ≤ 1.5).
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
