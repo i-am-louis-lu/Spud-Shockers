@@ -1148,6 +1148,20 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
         // an active inspect restarts it.
         this._inspectTimer = 1.4;
       }
+      if (e.code === 'KeyG') {
+        // Emergency teleport: when a custom voxel/glb map puts the player
+        // in a bad spot (above a roof, outside walls, stuck mid-air), G
+        // warps them to a random alive enemy bot. Those bots are always
+        // on the actual playable area, so this is a guaranteed escape hatch.
+        const enemies = this.game.bots.filter(
+          (b) => !b.dead && b.team !== this.team,
+        );
+        if (enemies.length > 0) {
+          const target = enemies[Math.floor(Math.random() * enemies.length)];
+          this.position.set(target.position.x, target.position.y + 1, target.position.z);
+          this.velocity.set(0, 0, 0);
+        }
+      }
       if (e.code === 'KeyC') this.trySlide();
       if (e.code === 'KeyF') this.toggleLockTarget();
       if (e.code === 'KeyY' || e.code === 'Enter') {
