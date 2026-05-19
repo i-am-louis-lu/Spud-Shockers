@@ -219,6 +219,64 @@ const REGEN_DELAY = 4.0;
 const REGEN_RATE = 1; // hp per second when out of combat (slow drip)
 const SPAWN_INVULN = 2.5;
 
+// Spray patterns — deterministic per-shot offsets in radians applied in the
+// player's local right/up frame. Adds a learnable skill ceiling to auto guns:
+// the first few shots are laser-accurate, then the pattern climbs+drifts in a
+// memorizable curve. Player counters by pulling the mouse DOWN/opposite.
+// Pattern advances each shot; resets when trigger has been idle ≥ SPRAY_RESET_S.
+// Positive dy = bullet drifts UP (player pulls DOWN); positive dx = drifts RIGHT.
+const SPRAY_RESET_S = 0.18;
+const SPRAY_PATTERNS = {
+  // AR (Fryer): 3 free shots, then a T-shape — climbs up, then drifts right.
+  // Mirrors AK-47 muscle memory: pull down, then sweep left.
+  tShape: [
+    { dx:  0.000, dy:  0.000 },
+    { dx:  0.000, dy:  0.000 },
+    { dx:  0.000, dy:  0.000 },
+    { dx:  0.000, dy:  0.013 },
+    { dx:  0.000, dy:  0.024 },
+    { dx: -0.005, dy:  0.032 },
+    { dx: -0.010, dy:  0.038 },
+    { dx: -0.012, dy:  0.040 },
+    { dx: -0.012, dy:  0.041 },
+    { dx: -0.008, dy:  0.042 },
+    { dx:  0.000, dy:  0.043 },
+    { dx:  0.010, dy:  0.043 },
+    { dx:  0.020, dy:  0.043 },
+    { dx:  0.026, dy:  0.043 },
+    { dx:  0.030, dy:  0.044 },
+    { dx:  0.028, dy:  0.044 },
+    { dx:  0.020, dy:  0.045 },
+    { dx:  0.010, dy:  0.045 },
+    { dx:  0.000, dy:  0.046 },
+    { dx: -0.010, dy:  0.046 },
+  ],
+  // MG (Spudling): faster RPM, longer mag — climbs straight, then figure-8.
+  // Player counters by pulling down then wiggling.
+  figure8: [
+    { dx:  0.000, dy:  0.000 },
+    { dx:  0.000, dy:  0.000 },
+    { dx:  0.000, dy:  0.010 },
+    { dx:  0.000, dy:  0.020 },
+    { dx:  0.000, dy:  0.028 },
+    { dx:  0.008, dy:  0.030 },
+    { dx:  0.014, dy:  0.032 },
+    { dx:  0.010, dy:  0.033 },
+    { dx:  0.000, dy:  0.034 },
+    { dx: -0.010, dy:  0.033 },
+    { dx: -0.014, dy:  0.032 },
+    { dx: -0.008, dy:  0.030 },
+    { dx:  0.000, dy:  0.029 },
+    { dx:  0.008, dy:  0.030 },
+    { dx:  0.014, dy:  0.032 },
+    { dx:  0.010, dy:  0.033 },
+    { dx:  0.000, dy:  0.034 },
+    { dx: -0.010, dy:  0.033 },
+    { dx: -0.014, dy:  0.032 },
+    { dx: -0.008, dy:  0.030 },
+  ],
+};
+
 // Per-weapon FPS arms + gun offsets, dialed in via the F9 dev panel and
 // pasted here. If a weapon isn't in this map we fall back to whatever the
 // auto-align init computed (decent generic "hand on gun" pose).
