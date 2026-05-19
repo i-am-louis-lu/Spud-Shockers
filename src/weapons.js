@@ -121,6 +121,8 @@ export const WEAPONS = {
     recoilRecover: 7,
     kickAmt: 0.24,
     shakeAmt: 0.13,
+    // Double-barrel — devastating in their face, dead past 12m
+    falloff: { start: 5, end: 15, min: 0.15 },
   },
   spudling: {
     name: 'Spudling Gun',
