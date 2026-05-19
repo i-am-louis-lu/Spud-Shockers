@@ -1124,6 +1124,12 @@ Gun scale: ${(s.gunScale || 1).toFixed(3)}`;
       if (e.code === 'KeyB') this.game.toggleShop();
       if (e.code === 'KeyP') this.toggleSentry();
       if (e.code === 'KeyT') this.triggerSpecial();
+      if (e.code === 'KeyI') {
+        // Inspect (flex) — 1.4s gun barrel-roll animation. Doesn't pause
+        // gameplay; player can still fire/reload/move. Re-pressing during
+        // an active inspect restarts it.
+        this._inspectTimer = 1.4;
+      }
       if (e.code === 'KeyC') this.trySlide();
       if (e.code === 'KeyF') this.toggleLockTarget();
       if (e.code === 'KeyY' || e.code === 'Enter') {
