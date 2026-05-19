@@ -128,6 +128,7 @@ export const WEAPONS = {
     shakeAmt: 0.13,
     // Double-barrel — devastating in their face, dead past 12m
     falloff: { start: 5, end: 15, min: 0.15 },
+    canZoom: false,
   },
   spudling: {
     name: 'Spudling Gun',
