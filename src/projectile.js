@@ -250,6 +250,22 @@ export class Projectile {
           this.game.triggerSlowMo(0.18, 0.07);
         }
       }
+      // HEADHUNTER achievement — consecutive headshot KILLS. Body-shot kill
+      // breaks the chain; missing entirely does not (still chained when you
+      // resume one-tapping). Banners fire at 3 and 5.
+      if (killed) {
+        const player2 = this.game.player;
+        if (isHeadshot) {
+          player2._hsKillStreak = (player2._hsKillStreak || 0) + 1;
+          if (player2._hsKillStreak === 3 && this.game.announceStreak) {
+            this.game.announceStreak('★ HEADHUNTER × 3', '#ff5e3a', 4);
+          } else if (player2._hsKillStreak === 5 && this.game.announceStreak) {
+            this.game.announceStreak('★ HEADHUNTER × 5 — DEADLY', '#ffd700', 5);
+          }
+        } else {
+          player2._hsKillStreak = 0;
+        }
+      }
       // Track shot accuracy — first projectile of a fire() counts as a hit on the trigger pull
       const player = this.game.player;
       if (player._shotPendingHit && player.matchStats) {
