@@ -107,11 +107,11 @@ export async function loadGlbMap(url, opts = {}) {
     root.position.x -= centroid.x;
     root.position.z -= centroid.z;
   }
-  // Floor: shift so the LOWEST mesh sits at y = yOffset (not the whole scene
-  // bbox, which would include stray non-mesh nodes).
-  if (isFinite(minY)) {
-    root.position.y += (yOffset - minY);
-  }
+  // NOTE: we no longer Y-shift the model. Many Sketchfab maps include decor
+  // meshes below the visible floor (basements, water sheets, etc.) — shifting
+  // by minY pushed the floor too high and the player spawned UNDER the floor.
+  // Trust the GLB's authored Y; the floor-mesh detection below picks the
+  // right spawn height based on the LARGEST horizontal mesh (the actual floor).
   root.updateMatrixWorld(true);
 
   // Walk the scene graph collecting AABB obstacles + named spawn points.
