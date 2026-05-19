@@ -235,8 +235,23 @@ export class HUD {
     this.coinDisplay.textContent = `${p.coins}¢`;
     this.killsDisplay.textContent = `K ${p.kills}`;
     if (this.xpDisplay) this.xpDisplay.textContent = `+${p.sessionXp || 0} XP`;
-    if (this.tsMash) this.tsMash.textContent = this.game.teamKills.mash;
-    if (this.tsRusset) this.tsRusset.textContent = this.game.teamKills.russet;
+    // Team scores — animate a brief scale/glow whenever the number ticks up,
+    // so the player's eye gets pulled to "the score just changed".
+    const bumpScore = (el, newVal, prevKey) => {
+      if (!el) return;
+      const prev = this[prevKey];
+      if (prev != null && newVal !== prev) {
+        el.classList.remove('score-bumped');
+        // Force layout reflow so the same class re-application restarts the
+        // CSS animation. Reading offsetWidth is the canonical reflow trick.
+        void el.offsetWidth;
+        el.classList.add('score-bumped');
+      }
+      el.textContent = newVal;
+      this[prevKey] = newVal;
+    };
+    bumpScore(this.tsMash, this.game.teamKills.mash, '_lastTsMash');
+    bumpScore(this.tsRusset, this.game.teamKills.russet, '_lastTsRusset');
     if (this.tsGoal) this.tsGoal.textContent = `to ${this.game.matchGoal}`;
 
     const loadoutKey = p.loadout.join('|');
