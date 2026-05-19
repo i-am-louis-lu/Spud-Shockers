@@ -196,8 +196,11 @@ export async function loadGlbMap(url, opts = {}) {
   //   - native model Y offsets (we use the floor mesh's actual top y)
   //   - off-center map geometry (we use the floor mesh's actual XZ center)
   if (spawns.mash.length === 0 || spawns.russet.length === 0) {
+    // Pick the LOWEST mesh (by top-y) with substantial XZ area as the floor.
+    // "Biggest mesh" used to pick rooftops/upper platforms; "lowest large
+    // mesh" reliably picks the actual ground floor.
     let floorBox = null;
-    let floorArea = 0;
+    let lowestTopY = Infinity;
     const tmpBoxF = new THREE.Box3();
     root.traverse((o) => {
       if (!o.isMesh) return;
@@ -206,11 +209,16 @@ export async function loadGlbMap(url, opts = {}) {
       const sz = tmpBoxF.getSize(new THREE.Vector3());
       if (sz.x > 1000 || sz.z > 1000) return;     // skip skyboxes
       const area = sz.x * sz.z;
-      if (area > floorArea) {
-        floorArea = area;
+      if (area < 25) return;                       // ignore tiny props
+      if (tmpBoxF.max.y < lowestTopY) {
+        lowestTopY = tmpBoxF.max.y;
         floorBox = tmpBoxF.clone();
       }
     });
+    if (floorBox) {
+      console.log('[glbmap] floor detected at top-y =', floorBox.max.y.toFixed(2),
+                  'center =', floorBox.getCenter(new THREE.Vector3()));
+    }
     if (floorBox) {
       const center = floorBox.getCenter(new THREE.Vector3());
       const yTop = floorBox.max.y + 1.5;           // 1.5m above the floor's top surface
