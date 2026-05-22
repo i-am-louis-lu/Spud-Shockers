@@ -447,6 +447,7 @@ export class Game {
     // Add the new GLB. We rely on the GLB's own floor for collision (the
     // glbmap loader now keeps thin-but-not-huge meshes as obstacles).
     this.scene.add(map.root);
+    if (map.fallbackGround) this.scene.add(map.fallbackGround);
     for (const o of map.obstacles) this.arena.obstacles.push(o);
     this.arena.teamSpawns.mash   = map.spawns.mash.map(  (s) => new THREE.Vector3(s.x, s.y, s.z));
     this.arena.teamSpawns.russet = map.spawns.russet.map((s) => new THREE.Vector3(s.x, s.y, s.z));
