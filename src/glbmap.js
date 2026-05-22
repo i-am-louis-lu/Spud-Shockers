@@ -261,8 +261,44 @@ export async function loadGlbMap(url, opts = {}) {
     return { minX: minX - 4, maxX: maxX + 4, minZ: minZ - 4, maxZ: maxZ + 4 };
   };
 
+  // ---- Fallback ground plane ----
+  // Unity Terrain (and trees painted on it) don't export to glTF — the format
+  // can't represent Unity's heightmap-based terrain system. So a Unity scene
+  // built around a Terrain arrives missing the actual ground. Without a floor,
+  // props float and the player falls into the void. We drop a wide grass plane
+  // just below the lowest mesh as a safety net. If the GLB ships with its own
+  // floor (CS2-style hand-built level), that floor sits ABOVE this plane and
+  // wins the spawn-height/collision check. Set opts.addFallbackGround = false
+  // to disable.
+  let fallbackGround = null;
+  if (opts.addFallbackGround !== false && !visBox.isEmpty()) {
+    const vSize = visBox.getSize(new THREE.Vector3());
+    const vCenter = visBox.getCenter(new THREE.Vector3());
+    const groundY = visBox.min.y - 0.05;
+    // Extend past the visible map so players don't sprint off the edge.
+    const half = Math.max(vSize.x, vSize.z) * 0.75 + 40;
+    const planeGeo = new THREE.PlaneGeometry(half * 2, half * 2);
+    const planeMat = new THREE.MeshLambertMaterial({ color: 0x5a8a3a });
+    fallbackGround = new THREE.Mesh(planeGeo, planeMat);
+    fallbackGround.rotation.x = -Math.PI / 2;
+    fallbackGround.position.set(vCenter.x, groundY, vCenter.z);
+    fallbackGround.receiveShadow = true;
+    obstacles.push({
+      x: vCenter.x - half, y: groundY - 0.1,
+      z: vCenter.z - half,
+      w: half * 2, h: 0.1, d: half * 2,
+    });
+    // If spawn detection found no real floor, lift spawns to sit on the plane.
+    if (spawns.mash.length && spawns.mash[0].y === 2) {
+      for (const s of spawns.mash)   s.y = groundY + 1.5;
+      for (const s of spawns.russet) s.y = groundY + 1.5;
+    }
+    console.log('[glbmap] fallback ground plane added at y =', groundY.toFixed(2));
+  }
+
   return {
     root,
+    fallbackGround,
     obstacles,
     spawns,
     pickups,
