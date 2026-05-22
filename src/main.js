@@ -429,11 +429,13 @@ applyMapHighlight();
 
 startBtn.addEventListener('click', async () => {
   commitName();
-  if (mapChoice === 'custom') {
+  const MAP_PATHS = { custom: 'maps/custom.glb', unity: 'maps/unity.glb' };
+  const mapPath = MAP_PATHS[mapChoice];
+  if (mapPath) {
     startBtn.disabled = true;
     const originalLabel = startBtn.textContent;
     startBtn.textContent = 'LOADING MAP…';
-    const ok = await game.loadGlbMap('maps/custom.glb');
+    const ok = await game.loadGlbMap(mapPath);
     startBtn.disabled = false;
     startBtn.textContent = originalLabel;
     if (!ok) {
@@ -445,7 +447,7 @@ startBtn.addEventListener('click', async () => {
         err.className = 'map-error';
         picker.appendChild(err);
       }
-      err.textContent = 'Could not load maps/custom.glb — check the file is there.';
+      err.textContent = `Could not load ${mapPath} — check the file is there.`;
       return;
     }
   }
